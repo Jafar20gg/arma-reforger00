@@ -152,6 +152,8 @@ export interface BallisticSolution {
   predictedImpactDistance?: number | null;
   impactErrorMeters?: number | null;
   tableVerificationStatus?: 'VERIFIED_IN_GAME' | 'STANDARD_PROFILE' | 'UNVERIFIED';
+  /** Shown under the solution when the table in use is an estimate rather than an in-game reading. */
+  tableNote?: string;
   ballisticDiagnostics?: BallisticDiagnosticInfo;
 }
 

@@ -523,9 +523,9 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
     if (overlays.showGunMarker) {
       if (!gunMarkerRef.current) {
         const gunIcon = L.divIcon({
-          className: 'marker-pulse-weapon',
+          className: 'tac-marker',
           html: `
-            <div style="width: 42px; height: 42px; border: 2.5px solid #38bdf8; background: rgba(14, 165, 233, 0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 16px #0284c7; cursor: grab; touch-action: none;">
+            <div class="marker-pulse-weapon" style="width: 42px; height: 42px; border: 2.5px solid #38bdf8; background: rgba(14, 165, 233, 0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 16px #0284c7; cursor: grab; touch-action: none;">
               <div style="width: 10px; height: 10px; background: #38bdf8; border-radius: 50%;"></div>
               <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); background: #0284c7; color: white; font-size: 10px; font-weight: 800; padding: 1.5px 5px; border-radius: 4px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.5);">GUN</div>
             </div>
@@ -543,7 +543,6 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
 
         marker.on('dragstart', () => {
           isDraggingGunRef.current = true;
-          map.dragging.disable();
         });
 
         marker.on('drag', (e: L.LeafletEvent) => {
@@ -559,7 +558,6 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
 
         marker.on('dragend', () => {
           isDraggingGunRef.current = false;
-          map.dragging.enable();
         });
 
         marker.bindTooltip(`Gun: ${formatGridCoord(gunPos.x, gunPos.z, 6)} (${gunPos.alt}m)`, {
@@ -584,9 +582,9 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
     if (overlays.showTargetMarker) {
       if (!targetMarkerRef.current) {
         const targetIcon = L.divIcon({
-          className: 'marker-pulse-target',
+          className: 'tac-marker',
           html: `
-            <div style="width: 42px; height: 42px; border: 2.5px solid #ef4444; background: rgba(239, 68, 68, 0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 16px #dc2626; cursor: grab; touch-action: none;">
+            <div class="marker-pulse-target" style="width: 42px; height: 42px; border: 2.5px solid #ef4444; background: rgba(239, 68, 68, 0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 16px #dc2626; cursor: grab; touch-action: none;">
               <div style="width: 8px; height: 8px; background: #ef4444; border-radius: 50%;"></div>
               <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); background: #dc2626; color: white; font-size: 10px; font-weight: 800; padding: 1.5px 5px; border-radius: 4px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.5);">T1</div>
             </div>
@@ -604,7 +602,6 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
 
         marker.on('dragstart', () => {
           isDraggingTargetRef.current = true;
-          map.dragging.disable();
         });
 
         marker.on('drag', (e: L.LeafletEvent) => {
@@ -620,7 +617,6 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
 
         marker.on('dragend', () => {
           isDraggingTargetRef.current = false;
-          map.dragging.enable();
         });
 
         marker.bindTooltip(`T1: ${formatGridCoord(targetPos.x, targetPos.z, 6)} (${targetPos.alt}m)`, {
@@ -851,9 +847,17 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
       }
     };
 
+    const handleContextMenu = (e: L.LeafletMouseEvent) => {
+      if (isRulerActive) return;
+      e.originalEvent.preventDefault();
+      onTargetChange({ x: Math.round(e.latlng.lng), z: Math.round(e.latlng.lat), alt: targetPos.alt });
+    };
+
     map.on('click', handleMapClick);
+    map.on('contextmenu', handleContextMenu);
     return () => {
       map.off('click', handleMapClick);
+      map.off('contextmenu', handleContextMenu);
     };
   }, [placementMode, isRulerActive, gunPos.alt, targetPos.alt, onGunChange, onTargetChange, onOpenMarkerModal]);
 

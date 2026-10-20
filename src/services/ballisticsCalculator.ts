@@ -351,6 +351,8 @@ export function solveMortarFireMission({
     ammoId: activeAmmo?.id,
     ammoWeightKg: activeAmmo?.weightKg,
     ammoCategory: activeAmmo?.category,
+    tableVerificationStatus: activeAmmo && activeAmmo.isVerified === false ? 'UNVERIFIED' : undefined,
+    tableNote: activeAmmo && activeAmmo.isVerified === false ? activeAmmo.verificationNote : undefined,
   };
 }
 

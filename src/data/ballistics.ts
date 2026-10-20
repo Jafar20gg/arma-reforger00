@@ -1,5 +1,6 @@
 import { BallisticSolution, WeaponConfig, BallisticDataPoint, AmmoConfig } from '../types';
 import { solveMortarFireMission } from '../services/ballisticsCalculator';
+import { buildEstimatedRing } from './estimatedTables';
 
 // ===========================================================================
 // OFFICIAL IN-GAME MANUAL TABLES: US M252 81mm MORTAR (M821 HE SHELL)
@@ -6181,7 +6182,6 @@ export const WEAPONS: WeaponConfig[] = [
     maxElevation: 1415, // 84.9° (14-15)
     maxElevationDeg: 84.9,
     verificationStatus: 'Requires verification against the existing game implementation',
-    firingTablesBlockedReason: 'Russian 2B14 firing tables are not verified: O-832DU Rings 0-2 are identical to the US M821 tables and contain elevations above the 1415 mil tube limit. Waiting for real in-game 2B14 data.',
     sourceInfo: 'Arma Reforger Vanilla Mortar & MPM-44M Sight Unit (Warsaw Pact 60-00 mils)',
     description: 'Soviet/Russian light battalion mortar. High trajectory fire from 50m to 2,300m using 0 to 4 additional ring charges and 60-00 Warsaw Pact sight graduations.',
     charges: [
@@ -6810,3 +6810,89 @@ export function formatGridCoord(x: number, z: number, digits: 6 | 8 = 6): string
 
   return `${eastStr} ${northStr}`;
 }
+
+
+// ---------------------------------------------------------------------------
+// Estimated firing tables (replace the old hand-typed tables at module load).
+// The old constants above (M252_M821_HE_CHARGE_n, PODNOS_*) are kept only as LEGACY, UNVERIFIED data.
+// ---------------------------------------------------------------------------
+
+/** Confirmed in-game M821 HE reachable ranges per ring (m), after the 1515-mil / 45 deg limits. */
+const US_M821_CONFIRMED_RANGES: Array<{ min: number; max: number }> = [
+  { min: 71, max: 400 },
+  { min: 160, max: 900 },
+  { min: 275, max: 1600 },
+  { min: 383, max: 2300 },
+  { min: 495, max: 2900 },
+];
+/** Confirmed mean dispersion per ring (m) for M821. */
+const US_M821_DISPERSION = [10, 23, 39, 54, 69];
+/** Estimated max range per ring for the 2B14 (no confirmed data; Ring 4 fitted to OCR'd in-game rows). */
+const RU_ESTIMATED_RMAX = [400, 900, 1600, 2070, 2370];
+
+const NOTE_US =
+  'تقديري: مدى كل Ring مأخوذ من قراءاتك المؤكدة، وباقي الجدول محسوب بنموذج رياضي (غير مقروء من اللعبة). Estimated table: ring limits confirmed, values modelled.';
+const NOTE_RU =
+  'تقديري وغير مؤكد: جداول 2B14 محسوبة بنموذج رياضي بدائرة 6000 ميل، وما عندنا قراءات مؤكدة للروسي. جرّب رمية وارسل مكان السقوط. Estimate only, not read from the game.';
+
+function applyEstimatedTables(): void {
+  const us = WEAPONS.find((w) => w.id === 'm252_81mm');
+  const ru = WEAPONS.find((w) => w.id === '2b14_82mm');
+
+  if (us && us.ammunition) {
+    const base = us.ammunition.find((a) => a.id === 'M821_HE');
+    const codeMax = base ? base.charges.map((c) => c.maxRange) : [];
+    const pByRing: number[] = [];
+    us.ammunition.forEach((ammo) => {
+      ammo.charges.forEach((c, i) => {
+        const conf = US_M821_CONFIRMED_RANGES[i];
+        if (!conf) return;
+        const isBase = ammo.id === 'M821_HE';
+        const ratio = isBase || !codeMax[i] ? 1 : c.maxRange / codeMax[i];
+        const m = buildEstimatedRing({
+          milsPerCircle: us.milsPerCircle,
+          minElevMils: us.minElevation,
+          maxElevMils: us.maxElevation,
+          rMax: Math.round(conf.max * ratio),
+          rMin: isBase ? conf.min : undefined,
+          p: isBase ? undefined : pByRing[i],
+          dispersion: isBase ? US_M821_DISPERSION[i] : undefined,
+        });
+        if (isBase) pByRing[i] = m.p;
+        c.minRange = m.minRange;
+        c.maxRange = m.maxRange;
+        c.table = m.table;
+      });
+      ammo.isVerified = false;
+      ammo.verificationNote = NOTE_US;
+    });
+    if (base) us.charges = base.charges;
+  }
+
+  if (ru && ru.ammunition) {
+    const base = ru.ammunition.find((a) => a.id === 'O832DU_HE');
+    const codeMax = base ? base.charges.map((c) => c.maxRange) : [];
+    ru.ammunition.forEach((ammo) => {
+      ammo.charges.forEach((c, i) => {
+        const rmax = RU_ESTIMATED_RMAX[i];
+        if (!rmax) return;
+        const isBase = ammo.id === 'O832DU_HE';
+        const ratio = isBase || !codeMax[i] ? 1 : c.maxRange / codeMax[i];
+        const m = buildEstimatedRing({
+          milsPerCircle: ru.milsPerCircle,
+          minElevMils: ru.minElevation,
+          maxElevMils: ru.maxElevation,
+          rMax: Math.round(rmax * ratio),
+        });
+        c.minRange = m.minRange;
+        c.maxRange = m.maxRange;
+        c.table = m.table;
+      });
+      ammo.isVerified = false;
+      ammo.verificationNote = NOTE_RU;
+    });
+    if (base) ru.charges = base.charges;
+  }
+}
+
+applyEstimatedTables();

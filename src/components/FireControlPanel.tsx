@@ -388,6 +388,12 @@ export const FireControlPanel: React.FC<FireControlPanelProps> = ({
             </div>
           )}
 
+          {solution.tableNote && (
+            <div className="mb-2 text-[10px] text-sky-300 font-mono bg-sky-950/30 p-1.5 rounded border border-sky-800/50">
+              ℹ️ {solution.tableNote}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3 pt-1">
             {/* Azimuth Box: Both Degrees and Mils */}
             <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-2.5">

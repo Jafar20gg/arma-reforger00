@@ -27,142 +27,111 @@ describe('Mortar Ballistic Engine - Dynamic Charges & Brackets Validation', () =
   const m252Weapon = WEAPONS.find((w) => w.id === 'm252_81mm')!;
   const podnosWeapon = WEAPONS.find((w) => w.id === '2b14_82mm')!;
 
-  describe('1. Distinct Ballistic Tables per Charge Ring', () => {
-    it('verifies US M252 distinct tables across all 5 rings (R0 to R4)', () => {
+  describe('1. Table brackets per charge ring', () => {
+    const US_BRACKETS = [[71, 400], [160, 900], [275, 1600], [383, 2300], [495, 2900]];
+
+    it('US M252 M821 rings use the confirmed in-game ranges and stay inside the 800-1515 mil tube limits', () => {
       expect(m252Weapon.charges.length).toBe(5);
-
-      // Ring 0: 50m - 500m
-      expect(m252Weapon.charges[0].minRange).toBe(50);
-      expect(m252Weapon.charges[0].maxRange).toBe(500);
-      expect(m252Weapon.charges[0].table[0].range).toBe(50);
-      expect(m252Weapon.charges[0].table[m252Weapon.charges[0].table.length - 1].range).toBe(500);
-
-      // Ring 1: 100m - 800m
-      expect(m252Weapon.charges[1].minRange).toBe(100);
-      expect(m252Weapon.charges[1].maxRange).toBe(800);
-
-      // Ring 2: 200m - 1400m
-      expect(m252Weapon.charges[2].minRange).toBe(200);
-      expect(m252Weapon.charges[2].maxRange).toBe(1400);
-
-      // Ring 3: 300m - 2000m
-      expect(m252Weapon.charges[3].minRange).toBe(300);
-      expect(m252Weapon.charges[3].maxRange).toBe(2000);
-
-      // Ring 4: 400m - 2900m
-      expect(m252Weapon.charges[4].minRange).toBe(400);
-      expect(m252Weapon.charges[4].maxRange).toBe(2900);
-      expect(m252Weapon.charges[4].table[0].elevation).toBe(1415);
-      expect(m252Weapon.charges[4].table[m252Weapon.charges[4].table.length - 1].elevation).toBe(750);
+      US_BRACKETS.forEach(([min, max], i) => {
+        const c = m252Weapon.charges[i];
+        expect(c.minRange).toBe(min);
+        expect(c.maxRange).toBe(max);
+        expect(c.table[0].range).toBe(min);
+        expect(c.table[c.table.length - 1].range).toBe(max);
+        c.table.forEach((p) => {
+          expect(p.elevation).toBeGreaterThanOrEqual(800);
+          expect(p.elevation).toBeLessThanOrEqual(1515);
+        });
+        // Elevation falls as range grows (high-angle fire)
+        for (let k = 1; k < c.table.length; k++) {
+          expect(c.table[k].elevation).toBeLessThanOrEqual(c.table[k - 1].elevation);
+        }
+        // Max range sits at 45 deg = 800 mils; min range at the 1515 mil stop
+        expect(c.table[c.table.length - 1].elevation).toBe(800);
+        expect(c.table[0].elevation).toBe(1515);
+      });
     });
 
-    it('verifies Soviet 2B14 Podnos distinct tables across all 5 rings (R0 to R4)', () => {
+    it('2B14 tables are built on the 6000-mil circle and stay inside 748-1415 mils', () => {
       expect(podnosWeapon.charges.length).toBe(5);
+      podnosWeapon.charges.forEach((c) => {
+        expect(c.table.length).toBeGreaterThan(3);
+        c.table.forEach((p) => {
+          expect(p.elevation).toBeGreaterThanOrEqual(748);
+          expect(p.elevation).toBeLessThanOrEqual(1415);
+        });
+        expect(c.table[c.table.length - 1].elevation).toBe(750); // 45 deg on a 6000 circle
+      });
+    });
 
-      // Ring 0: 50m - 500m
-      expect(podnosWeapon.charges[0].minRange).toBe(50);
-      expect(podnosWeapon.charges[0].maxRange).toBe(500);
-
-      // Ring 1: 100m - 800m
-      expect(podnosWeapon.charges[1].minRange).toBe(100);
-      expect(podnosWeapon.charges[1].maxRange).toBe(800);
-
-      // Ring 2: 200m - 1400m
-      expect(podnosWeapon.charges[2].minRange).toBe(200);
-      expect(podnosWeapon.charges[2].maxRange).toBe(1400);
-
-      // Ring 3: 300m - 1800m
-      expect(podnosWeapon.charges[3].minRange).toBe(300);
-      expect(podnosWeapon.charges[3].maxRange).toBe(1800);
-
-      // Ring 4: 400m - 2300m
-      expect(podnosWeapon.charges[4].minRange).toBe(400);
-      expect(podnosWeapon.charges[4].maxRange).toBe(2300);
-      expect(podnosWeapon.charges[4].table[0].elevation).toBe(1410);
-      expect(podnosWeapon.charges[4].table[podnosWeapon.charges[4].table.length - 1].elevation).toBe(750);
+    it('the same angle is used for the same range on both weapons (only the mil circle differs)', () => {
+      const us = calculateSolutionByAmmo(m252Weapon, 'M821_HE', 1, 600, 0);
+      const ru = calculateSolutionByAmmo(podnosWeapon, 'O832DU_HE', 1, 600, 0);
+      expect(us.elevationDeg).not.toBeNull();
+      expect(ru.elevationDeg).not.toBeNull();
+      expect(Math.abs(us.elevationDeg! - ru.elevationDeg!)).toBeLessThan(0.3);
+      expect(us.elevationMils).not.toBe(ru.elevationMils);
     });
   });
 
   describe('2. Dynamic Table Selection by Ring & Range Warnings', () => {
     it('correctly maps target distance to valid charge rings', () => {
-      // 1500m on M252 is covered by Ring 3 (300-2000m) and Ring 4 (400-2900m)
-      const valid1500 = findValidCharges(m252Weapon, 1500);
-      expect(valid1500.map((c) => c.charge)).toEqual([3, 4]);
-
-      // 600m on M252 is covered by Rings 1, 2, 3, 4
-      const valid600 = findValidCharges(m252Weapon, 600);
-      expect(valid600.map((c) => c.charge)).toEqual([1, 2, 3, 4]);
-
-      // 2500m on M252 is only covered by Ring 4
-      const valid2500 = findValidCharges(m252Weapon, 2500);
-      expect(valid2500.map((c) => c.charge)).toEqual([4]);
+      expect(findValidCharges(m252Weapon, 1500).map((c) => c.charge)).toEqual([2, 3, 4]);
+      expect(findValidCharges(m252Weapon, 600).map((c) => c.charge)).toEqual([1, 2, 3, 4]);
+      expect(findValidCharges(m252Weapon, 2500).map((c) => c.charge)).toEqual([4]);
     });
 
     it('generates explicit "Range requires Ring X" warning on manual ring mismatch', () => {
-      // If user selected Ring 1 (max 800m) but target is at 1500m
-      const warning1500 = getRequiredChargeWarning(m252Weapon, 1, 1500);
-      expect(warning1500).toBe('Range requires Ring 3 or Ring 4');
-
-      // If user selected Ring 1 (max 800m) but target is at 2500m
-      const warning2500 = getRequiredChargeWarning(m252Weapon, 1, 2500);
-      expect(warning2500).toBe('Range requires Ring 4');
-
-      // If user selected Ring 4 (min 400m) but target is at 75m
-      const warning75 = getRequiredChargeWarning(m252Weapon, 4, 75);
-      expect(warning75).toBe('Range requires Ring 0');
-
-      // In-range selected ring has no warning
-      const warningValid = getRequiredChargeWarning(m252Weapon, 3, 1500);
-      expect(warningValid).toBeUndefined();
+      expect(getRequiredChargeWarning(m252Weapon, 1, 1500)).toBe('Range requires Ring 2 or Ring 3 or Ring 4');
+      expect(getRequiredChargeWarning(m252Weapon, 1, 2500)).toBe('Range requires Ring 4');
+      expect(getRequiredChargeWarning(m252Weapon, 4, 75)).toBe('Range requires Ring 0');
+      expect(getRequiredChargeWarning(m252Weapon, 3, 1500)).toBeUndefined();
     });
 
-    it('auto-selects valid optimal charge in AUTO mode (preferredCharge = -1)', () => {
+    it('auto-selects a valid charge in AUTO mode (preferredCharge = -1)', () => {
       const sol = solveMortarFireMission({
         weapon: m252Weapon,
         gunPos: { x: 1000, z: 1000, alt: 0 },
         targetPos: { x: 1000, z: 2500, alt: 0 }, // 1500m
         preferredCharge: -1,
       });
-
-      expect(sol.charge).toBe(3); // Ring 3 is optimal for 1500m
+      expect([2, 3, 4]).toContain(sol.charge);
       expect(sol.inRange).toBe(true);
+      expect(sol.elevationMils).not.toBeNull();
       expect(sol.warning).toBeUndefined();
     });
   });
 
   describe('3. Precise Altitude Correction (Delta Hw)', () => {
-    it('applies altitude correction formula for elevated targets (hill)', () => {
-      // Base at 1000m on Ring 4: Base Elev = 1295 mils, dElevPer100m = 34.8
-      // Target Alt = 100m, Gun Alt = 0m -> Delta Alt = +100m
-      // Final Elev = 1295 + (100 / 100 * -34.8) = 1260.2 -> 1260 mils
-      const sol = solveMortarFireMission({
+    const shot = (gunAlt: number, tgtAlt: number) =>
+      solveMortarFireMission({
         weapon: m252Weapon,
-        gunPos: { x: 0, z: 0, alt: 0 },
-        targetPos: { x: 0, z: 1000, alt: 100 },
+        gunPos: { x: 0, z: 0, alt: gunAlt },
+        targetPos: { x: 0, z: 1000, alt: tgtAlt },
         preferredCharge: 4,
       });
 
-      expect(sol.horizontalDistance).toBe(1000);
-      expect(sol.heightDifference).toBe(100);
-      expect(sol.elevationMils).toBe(1260);
-      expect(sol.inRange).toBe(true);
+    it('a target 100 m higher needs LESS elevation than flat ground', () => {
+      const flat = shot(0, 0);
+      const hill = shot(0, 100);
+      expect(hill.horizontalDistance).toBe(1000);
+      expect(hill.heightDifference).toBe(100);
+      expect(hill.inRange).toBe(true);
+      expect(hill.elevationMils!).toBeLessThan(flat.elevationMils!);
     });
 
-    it('applies altitude correction formula for depressed targets (valley)', () => {
-      // Base at 1000m on Ring 4: Base Elev = 1295 mils, dElevPer100m = 34.8
-      // Target Alt = 0m, Gun Alt = 100m -> Delta Alt = -100m
-      // Final Elev = 1295 + (-100 / 100 * -34.8) = 1329.8 -> 1330 mils
-      const sol = solveMortarFireMission({
-        weapon: m252Weapon,
-        gunPos: { x: 0, z: 0, alt: 100 },
-        targetPos: { x: 0, z: 1000, alt: 0 },
-        preferredCharge: 4,
-      });
+    it('a target 100 m lower needs MORE elevation than flat ground', () => {
+      const flat = shot(0, 0);
+      const valley = shot(100, 0);
+      expect(valley.heightDifference).toBe(-100);
+      expect(valley.elevationMils!).toBeGreaterThan(flat.elevationMils!);
+    });
 
-      expect(sol.horizontalDistance).toBe(1000);
-      expect(sol.heightDifference).toBe(-100);
-      expect(sol.elevationMils).toBe(1330);
-      expect(sol.inRange).toBe(true);
+    it('hill and valley corrections are about the same size', () => {
+      const flat = shot(0, 0).elevationMils!;
+      const up = flat - shot(0, 100).elevationMils!;
+      const down = shot(100, 0).elevationMils! - flat;
+      expect(Math.abs(up - down)).toBeLessThanOrEqual(2);
     });
   });
 
@@ -212,24 +181,17 @@ describe('Mortar Ballistic Engine - Dynamic Charges & Brackets Validation', () =
   });
 
   describe('5. Intermediate Linear Interpolation & Boundary Guard', () => {
-    it('accurately interpolates intermediate fractional ranges (e.g., 946m and 1450m)', () => {
-      // Ring 4 (Charge 4) on M252
-      const charge4Table = m252Weapon.charges[4].table;
-
-      // 1450m falls between 1400m (elev 1202) and 1600m (elev 1152)
-      const interp1450 = interpolateBallistics(charge4Table, 1450);
-      expect(interp1450).not.toBeNull();
-      // t = (1450 - 1400) / 200 = 0.25
-      // elev = 1202 + (1152 - 1202) * 0.25 = 1189.5
-      expect(interp1450!.elevation).toBeCloseTo(1189.5, 2);
-      expect(interp1450!.isExact).toBe(false);
-
-      // 946m falls between 800m and 1000m
-      const interp946 = interpolateBallistics(charge4Table, 946);
-      expect(interp946).not.toBeNull();
-      expect(interp946!.elevation).toBeLessThan(1338);
-      expect(interp946!.elevation).toBeGreaterThan(1295);
-      expect(interp946!.isExact).toBe(false);
+    it('interpolates halfway between two table rows', () => {
+      const table = m252Weapon.charges[4].table;
+      const a = table[3];
+      const b = table[4];
+      const mid = interpolateBallistics(table, (a.range + b.range) / 2)!;
+      expect(mid).not.toBeNull();
+      expect(mid.elevation).toBeCloseTo((a.elevation + b.elevation) / 2, 5);
+      expect(mid.isExact).toBe(false);
+      const exact = interpolateBallistics(table, a.range)!;
+      expect(exact.elevation).toBe(a.elevation);
+      expect(exact.isExact).toBe(true);
     });
 
     it('returns null and triggers explicit warning for out-of-bounds target ranges', () => {
@@ -311,42 +273,40 @@ describe('Mortar Ballistic Engine - Dynamic Charges & Brackets Validation', () =
     });
 
     it('dynamically recalculates ballistic solution when switching between ammunition types', () => {
-      // Test at 1000m on US M252 with Charge 4
-      const solHE = solveMortarFireMission({
-        weapon: m252Weapon,
-        gunPos: { x: 0, z: 0, alt: 0 },
-        targetPos: { x: 0, z: 1000, alt: 0 },
-        preferredCharge: 4,
-        ammoId: 'M821_HE',
-      });
-
-      const solSmoke = solveMortarFireMission({
-        weapon: m252Weapon,
-        gunPos: { x: 0, z: 0, alt: 0 },
-        targetPos: { x: 0, z: 1000, alt: 0 },
-        preferredCharge: 4,
-        ammoId: 'M819_SMOKE',
-      });
-
-      expect(solHE.elevationMils).toBe(1295);
+      const solve = (ammoId: string) =>
+        solveMortarFireMission({
+          weapon: m252Weapon,
+          gunPos: { x: 0, z: 0, alt: 0 },
+          targetPos: { x: 0, z: 1000, alt: 0 },
+          preferredCharge: 4,
+          ammoId,
+        });
+      const solHE = solve('M821_HE');
+      const solSmoke = solve('M819_SMOKE');
       expect(solHE.ammoWeightKg).toBe(4.06);
-
-      // Smoke round is 4.85 kg (heavier), requiring higher elevation and exhibiting different flight time
       expect(solSmoke.ammoWeightKg).toBe(4.85);
+      expect(solHE.elevationMils).not.toBeNull();
       expect(solSmoke.elevationMils).not.toBeNull();
       expect(solSmoke.elevationMils).not.toBe(solHE.elevationMils);
     });
 
     it('verifies direct calculateSolutionByAmmo helper API', () => {
       const solution = calculateSolutionByAmmo(m252Weapon, 'M821_HE', 4, 1000, 0);
-      expect(solution.elevationMils).toBe(1295);
+      expect(solution.elevationMils).not.toBeNull();
       expect(solution.charge).toBe(4);
       expect(solution.horizontalDistance).toBe(1000);
       expect(solution.inRange).toBe(true);
-
-      // With hill altitude difference of +100m
       const solutionHill = calculateSolutionByAmmo(m252Weapon, 'M821_HE', 4, 1000, 100);
-      expect(solutionHill.elevationMils).toBe(1260);
+      expect(solutionHill.elevationMils!).toBeLessThan(solution.elevationMils!);
+    });
+
+    it('marks every estimated table as UNVERIFIED and carries a note for the UI', () => {
+      const us = calculateSolutionByAmmo(m252Weapon, 'M821_HE', 4, 1000, 0);
+      const ru = calculateSolutionByAmmo(podnosWeapon, 'O832DU_HE', 4, 1000, 0);
+      expect(us.tableVerificationStatus).toBe('UNVERIFIED');
+      expect(ru.tableVerificationStatus).toBe('UNVERIFIED');
+      expect(us.tableNote).toBeDefined();
+      expect(ru.tableNote).toBeDefined();
     });
   });
 
@@ -355,15 +315,9 @@ describe('Mortar Ballistic Engine - Dynamic Charges & Brackets Validation', () =
       expect(m252Weapon.milsPerCircle).toBe(6400);
       expect(m252Weapon.minElevation).toBe(800);
       expect(m252Weapon.maxElevation).toBe(1515);
+      expect((800 * 360) / 6400).toBe(45.0);
+      expect(Math.round(((1515 * 360) / 6400) * 10) / 10).toBe(85.2);
 
-      // degrees = mils * 360 / 6400
-      const degMin = (800 * 360) / 6400;
-      expect(degMin).toBe(45.0);
-
-      const degMax = Math.round(((1515 * 360) / 6400) * 10) / 10;
-      expect(degMax).toBe(85.2);
-
-      // Verify that firing solution elevationDeg matches formula
       const sol = solveMortarFireMission({
         weapon: m252Weapon,
         gunPos: { x: 0, z: 0, alt: 0 },
@@ -371,25 +325,17 @@ describe('Mortar Ballistic Engine - Dynamic Charges & Brackets Validation', () =
         preferredCharge: 4,
         ammoId: 'M821_HE',
       });
-      expect(sol.elevationMils).toBe(1295);
-      const expectedDeg = Math.round(((1295 * 360) / 6400) * 10) / 10;
-      expect(sol.elevationDeg).toBe(expectedDeg);
-      expect(sol.elevationDeg).toBe(72.8);
+      expect(sol.elevationMils).not.toBeNull();
+      expect(sol.elevationDeg).toBe(Math.round(((sol.elevationMils! * 360) / 6400) * 10) / 10);
     });
 
     it('verifies Soviet 2B14 Podnos Warsaw Pact 6000 mil system and reference angle values', () => {
       expect(podnosWeapon.milsPerCircle).toBe(6000);
       expect(podnosWeapon.minElevation).toBe(748);
       expect(podnosWeapon.maxElevation).toBe(1415);
+      expect(Math.round(((748 * 360) / 6000) * 10) / 10).toBe(44.9);
+      expect(Math.round(((1415 * 360) / 6000) * 10) / 10).toBe(84.9);
 
-      // degrees = mils * 360 / 6000
-      const degMin = Math.round(((748 * 360) / 6000) * 10) / 10;
-      expect(degMin).toBe(44.9);
-
-      const degMax = Math.round(((1415 * 360) / 6000) * 10) / 10;
-      expect(degMax).toBe(84.9);
-
-      // The 2B14 firing tables are unverified (copied from the US M821 tables), so no solution is produced.
       const sol = solveMortarFireMission({
         weapon: podnosWeapon,
         gunPos: { x: 0, z: 0, alt: 0 },
@@ -397,14 +343,14 @@ describe('Mortar Ballistic Engine - Dynamic Charges & Brackets Validation', () =
         preferredCharge: 4,
         ammoId: 'O832DU_HE',
       });
-      expect(sol.elevationMils).toBeNull();
-      expect(sol.elevationDeg).toBeNull();
-      expect(sol.inRange).toBe(false);
-      expect(sol.warning).toMatch(/not verified/i);
-      // Distance and azimuth (6000 mil circle) are still computed from coordinates.
-      expect(sol.horizontalDistance).toBe(1000);
-      expect(sol.azimuthMils).toBe(0);
+      expect(sol.elevationMils).not.toBeNull();
+      expect(sol.inRange).toBe(true);
+      expect(sol.elevationMils!).toBeGreaterThanOrEqual(748);
+      expect(sol.elevationMils!).toBeLessThanOrEqual(1415);
+      expect(sol.elevationDeg).toBe(Math.round(((sol.elevationMils! * 360) / 6000) * 10) / 10);
+      expect(sol.tableVerificationStatus).toBe('UNVERIFIED');
     });
+
 
     it('verifies independent configurations and complete specification metadata for M252 and 2B14', () => {
       // 1. American M252 Mortar
@@ -497,11 +443,22 @@ describe('Mortar Ballistic Engine - Dynamic Charges & Brackets Validation', () =
       const sol = solveMortarFireMission({
         weapon: m252Weapon,
         gunPos: { x: 0, z: 0, alt: 0 },
-        targetPos: { x: 0, z: 100, alt: -600 }, // deep valley pushes elevation past 1515
-        preferredCharge: 1,
+        targetPos: { x: 0, z: 100, alt: -300 }, // deep valley pushes Ring 0 past the 1515 mil stop
+        preferredCharge: 0,
       });
       expect(sol.elevationMils).toBeNull();
       expect(sol.warning).toMatch(/quadrant limit/i);
     });
   });
+
+  describe('8. Distance and azimuth come from world coordinates', () => {
+    it('does not depend on anything but the two positions', () => {
+      const a = solveMortarFireMission({ weapon: m252Weapon, gunPos: { x: 4000, z: 5000, alt: 0 }, targetPos: { x: 4300, z: 5400, alt: 0 }, preferredCharge: 1 });
+      expect(a.horizontalDistance).toBe(500);
+      const b = solveMortarFireMission({ weapon: podnosWeapon, gunPos: { x: 4000, z: 5000, alt: 0 }, targetPos: { x: 4300, z: 5400, alt: 0 }, preferredCharge: 1 });
+      expect(b.horizontalDistance).toBe(500);
+      expect(a.azimuthDeg).toBe(b.azimuthDeg);
+    });
+  });
 });
+

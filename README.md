@@ -121,6 +121,10 @@ npm run preview
 
 ## ⚠️ Data status (updated)
 
-- **Calculator rules:** no invented defaults for missing table columns (they show as `---`), no clamping to table edges, and a target outside the selected ring gets no elevation.
-- **2B14 (Russian):** firing solutions are **disabled** until real in-game tables are entered. The current O-832DU Rings 0–2 are identical to the US M821 tables and contain elevations above the 1415-mil tube limit. Distance and azimuth (6000-mil circle) still work.
-- **M252 (US):** the table rows and ring brackets listed above are **not yet matched** against the confirmed in-game readings (e.g. confirmed M821 Ring 0 range 71–400 m, Ring 1 160–900 m, Ring 2 275–1600 m, Ring 3 383–2300 m, Ring 4 495–2900 m). The per-ring ranges in this README are older figures.
+- **Calculator rules:** no invented defaults for missing table columns (they show as `---`), no clamping to table edges, and a target outside the selected ring gets no elevation. A corrected elevation outside the tube limits (US 800–1515, 2B14 748–1415 mils) is refused.
+- **Tables are ESTIMATES.** `src/data/estimatedTables.ts` builds each ring from a high-angle model (range = Rmax · sin(2θ)^p). The old hand-typed tables were inconsistent (e.g. US Ring 4 ended at 750 mils, below the M252's own 800-mil minimum) and are kept in `ballistics.ts` only as legacy data.
+- **M252 (US) M821:** ring ranges are the confirmed in-game values — Ring 0 71–400 m, Ring 1 160–900, Ring 2 275–1600, Ring 3 383–2300, Ring 4 495–2900 — and mean dispersion 10/23/39/54/69 m. Elevations between those limits are modelled, not read from the game.
+- **2B14 (Russian):** same model on the 6000-mil circle with estimated ring ranges (Ring 4 fitted to OCR'd in-game rows). No confirmed Russian readings yet.
+- **Other ammunition (smoke, illumination, training, S-832S, D-832DU):** scaled from the HE tables, unverified.
+- **Map:** the gun and target markers can be dragged directly; right-click on the map also places the target. (The pulse animation used to sit on Leaflet's own marker element, which overrides Leaflet's positioning and breaks dragging.)
+- Every solution from an estimated table carries a note in the Fire Control panel.
