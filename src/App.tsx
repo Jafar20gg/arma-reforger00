@@ -18,14 +18,14 @@ import {
 } from './types';
 import { applyTuningToCharges } from './services/ballisticsCalculator';
 import { StorageService } from './services/storageService';
+import { useStorageConsent, grantStorage, denyStorage } from './services/storageConsent';
+import { flushWidgetLayout } from './services/widgetLayout';
 import { Header } from './components/Header';
 import { TacticalMap } from './components/TacticalMap';
 import { FireControlPanel } from './components/FireControlPanel';
 import { DiagnosticsModal } from './components/DiagnosticsModal';
 import { HelpModal } from './components/HelpModal';
-import { ServerListModal } from './components/ServerListModal';
-import { ServerWidget } from './components/ServerWidget';
-import { FloatingBox } from './components/FloatingBox';
+import { StorageConsentBanner } from './components/StorageConsentBanner';
 import { SettingsModal } from './components/SettingsModal';
 import { CustomMarkerModal } from './components/CustomMarkerModal';
 import { WeatherWidget } from './components/WeatherWidget';
@@ -49,6 +49,28 @@ export default function App() {
   }, []);
   const [tunings, setTunings] = useState<WeaponTunings>(() => StorageService.loadTunings());
 
+  // Permission to save data in this browser (nothing is written until the user allows it)
+  const storageConsent = useStorageConsent();
+  const handleSetStorage = useCallback(
+    (allow: boolean) => {
+      if (allow) {
+        grantStorage();
+        // store what is on screen right now
+        StorageService.saveSettings(settings);
+        StorageService.saveOverlays(overlays);
+        StorageService.saveWeather(weather);
+        StorageService.saveMarkers(customMarkers);
+        StorageService.saveCustomMortars(customMortars);
+        StorageService.saveTunings(tunings);
+        StorageService.saveAi(aiSettings);
+        flushWidgetLayout();
+      } else {
+        denyStorage();
+      }
+    },
+    [settings, overlays, weather, customMarkers, customMortars, tunings, aiSettings],
+  );
+
   // 2. Modals & Menu State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isThreeDotOpen, setIsThreeDotOpen] = useState(false);
@@ -56,14 +78,6 @@ export default function App() {
   const [markerModalCoords, setMarkerModalCoords] = useState<{ x: number; z: number }>({ x: 0, z: 0 });
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [isServersOpen, setIsServersOpen] = useState(false);
-  const [showServers, setShowServers] = useState<boolean>(() => {
-    try { return localStorage.getItem('fcs_show_servers') !== '0'; } catch { return true; }
-  });
-  const handleToggleServers = useCallback((v: boolean) => {
-    setShowServers(v);
-    try { localStorage.setItem('fcs_show_servers', v ? '1' : '0'); } catch { /* ignore */ }
-  }, []);
   const [isMortarInfoOpen, setIsMortarInfoOpen] = useState(false);
   const [fitMissionTrigger, setFitMissionTrigger] = useState<number>(0);
   const [isRulerActive, setIsRulerActive] = useState<boolean>(false);
@@ -454,26 +468,19 @@ export default function App() {
         onFitMission={handleFitMission}
         onToggleLang={toggleLang}
         onOpenMortarInfo={() => setIsMortarInfoOpen(true)}
-        onOpenServers={() => setIsServersOpen(true)}
         onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
         onOpenHelp={() => setIsHelpOpen(true)}
         failedTiles={diagnostics.failedCount}
         overlays={overlays}
         onUpdateOverlays={handleUpdateOverlays}
-        showServers={showServers}
-        onToggleServers={handleToggleServers}
+        storageAllowed={storageConsent === 'granted'}
+        onSetStorage={handleSetStorage}
         lang={settings.language}
       />
 
-      {showServers && (
-        <div className={mobileTab === 'map' ? 'contents' : 'hidden lg:contents'}>
-          <FloatingBox id="servers" corner="bottom-left" offsetX={8} offsetY={96} grip="bar" lang={settings.language} onHide={() => handleToggleServers(false)}>
-            <ServerWidget lang={settings.language} />
-          </FloatingBox>
-        </div>
+      {storageConsent === null && (
+        <StorageConsentBanner lang={settings.language} onAllow={() => handleSetStorage(true)} onDeny={() => handleSetStorage(false)} />
       )}
-
-      <ServerListModal isOpen={isServersOpen} onClose={() => setIsServersOpen(false)} lang={settings.language} />
 
       {/* Main Workspace Layout (Map-Only Primary Interface with Collapsible Sidebar) */}
       <div className={`flex-1 flex min-h-0 overflow-hidden relative ${
@@ -555,8 +562,6 @@ export default function App() {
 
       {/* Comprehensive Settings Modal */}
       <SettingsModal
-        showServers={showServers}
-        onToggleServers={handleToggleServers}
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}

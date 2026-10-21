@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from 'react';
+import { isStorageAllowed } from './storageConsent';
 
 /**
- * Position + size of the floating widgets (compass, servers list).
+ * Position + size of the floating widgets (compass).
  * Saved only in this browser (localStorage). x / y = null means "use the default corner".
  */
 export interface WidgetLayout {
@@ -45,11 +46,17 @@ let state: Record<string, WidgetLayout> = load();
 const listeners = new Set<() => void>();
 
 function persist() {
+  if (!isStorageAllowed()) return; // no permission to save in this browser yet
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
   } catch {
     /* storage full or blocked: the layout just won't be remembered */
   }
+}
+
+/** Called right after the user allows saving, so the current layout is stored too. */
+export function flushWidgetLayout() {
+  persist();
 }
 
 function emit() {

@@ -11,6 +11,8 @@ import {
   AiSettings
 } from '../types';
 
+import { isStorageAllowed } from './storageConsent';
+
 const STORAGE_KEYS = {
   SETTINGS: 'arma_reforger_fcs_settings_v1',
   OVERLAYS: 'arma_reforger_fcs_overlays_v1',
@@ -122,6 +124,7 @@ function getStorage(): Storage | null {
 }
 
 function safeSet<T>(key: string, value: T): boolean {
+  if (!isStorageAllowed()) return false; // user has not allowed saving in this browser
   try {
     const storage = getStorage();
     if (!storage) return false;

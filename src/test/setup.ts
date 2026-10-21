@@ -31,3 +31,7 @@ if (typeof globalThis.localStorage === 'undefined') {
   };
 }
 
+
+// the app only saves after the user allows it; tests act as if they did
+import { grantStorage } from '../services/storageConsent';
+grantStorage();

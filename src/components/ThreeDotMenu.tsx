@@ -51,14 +51,13 @@ interface ThreeDotMenuProps {
   onFitMission: () => void;
   onToggleLang: () => void;
   onOpenMortarInfo?: () => void;
-  onOpenServers?: () => void;
   onOpenDiagnostics?: () => void;
   onOpenHelp?: () => void;
   failedTiles?: number;
   overlays?: MapOverlaySettings;
   onUpdateOverlays?: (patch: Partial<MapOverlaySettings>) => void;
-  showServers?: boolean;
-  onToggleServers?: (v: boolean) => void;
+  storageAllowed?: boolean;
+  onSetStorage?: (allow: boolean) => void;
   lang: 'en' | 'ar';
 }
 
@@ -111,14 +110,13 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   onFitMission,
   onToggleLang,
   onOpenMortarInfo,
-  onOpenServers,
   onOpenDiagnostics,
   onOpenHelp,
   failedTiles = 0,
   overlays,
   onUpdateOverlays,
-  showServers,
-  onToggleServers,
+  storageAllowed,
+  onSetStorage,
   lang,
 }) => {
   const t = TRANSLATIONS[lang];
@@ -383,22 +381,6 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
                     </button>
                   )}
 
-                  {/* Arma Reforger servers (names + player counts) */}
-                  {onOpenServers && (
-                    <button
-                      onClick={() => {
-                        onClose();
-                        onOpenServers();
-                      }}
-                      className="col-span-2 p-2.5 rounded-lg border border-emerald-500/40 bg-emerald-950/30 hover:bg-emerald-900/40 text-emerald-300 hover:text-white flex items-center justify-between font-bold text-sm transition-all shadow-sm"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-emerald-400" />
-                        <span>{isAr ? 'سيرفرات Arma Reforger واللاعبين' : 'Reforger Servers & Players'}</span>
-                      </div>
-                    </button>
-                  )}
-
                   {/* Mortar Information System Launch Button */}
                   {onOpenMortarInfo && (
                     <button
@@ -418,11 +400,36 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
                 </div>
               </div>
 
-              {/* Floating widgets: compass + servers (show / hide / size) */}
-              {(overlays && onUpdateOverlays) || onToggleServers ? (
+              {/* Permission to save data in this browser */}
+              {onSetStorage && (
+                <div className="border-t border-slate-800 pt-3">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                    {isAr ? 'الحفظ على المتصفح' : 'Save on this browser'}
+                  </label>
+                  <div
+                    onClick={() => onSetStorage(!storageAllowed)}
+                    className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950/40 hover:bg-slate-800/60 border border-slate-800/80 cursor-pointer transition-colors"
+                  >
+                    <div>
+                      <div className="text-xs text-slate-200 font-semibold select-none">
+                        {storageAllowed ? (isAr ? 'مسموح: إعداداتك محفوظة' : 'Allowed: your settings are saved') : isAr ? 'غير مسموح: ما يحفظ شي' : 'Not allowed: nothing is saved'}
+                      </div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">
+                        {isAr ? 'يبقى على جهازك فقط. إذا طفّيته تنمسح البيانات المحفوظة.' : 'Stays on your device. Turning it off deletes the saved data.'}
+                      </div>
+                    </div>
+                    <div className={`w-9 h-5 rounded-full transition-colors p-0.5 flex items-center shrink-0 ${storageAllowed ? 'bg-sky-500 justify-end' : 'bg-slate-700 justify-start'}`} dir="ltr">
+                      <div className="w-4 h-4 rounded-full bg-white shadow-md"></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Floating widgets: compass (show / hide / size) */}
+              {overlays && onUpdateOverlays ? (
                 <div className="border-t border-slate-800 pt-3">
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                    {isAr ? 'عناصر عائمة (البوصلة والسيرفرات)' : 'Floating widgets (compass & servers)'}
+                    {isAr ? 'عناصر عائمة (البوصلة)' : 'Floating widgets (compass)'}
                   </label>
                   <p className="text-[11px] text-slate-500 mb-2">
                     {isAr ? 'اسحب أي عنصر بإصبعك أو الماوس لتحريكه، واضغط عليه لتظهر أزرار التصغير والتكبير والإخفاء.' : 'Drag a widget to move it; tap it for the smaller / bigger / hide buttons.'}
@@ -430,9 +437,6 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
                   <div className="space-y-1.5">
                     {overlays && onUpdateOverlays && (
                       <WidgetRow id="compass" isAr={isAr} label={isAr ? 'البوصلة' : 'Compass'} on={!!overlays.showCompass} onChange={(val) => onUpdateOverlays({ showCompass: val })} />
-                    )}
-                    {onToggleServers && (
-                      <WidgetRow id="servers" isAr={isAr} label={isAr ? 'سيرفرات Reforger واللاعبين' : 'Reforger servers & players'} on={showServers !== false} onChange={onToggleServers} />
                     )}
                     <button
                       onClick={() => resetWidgetLayout()}
