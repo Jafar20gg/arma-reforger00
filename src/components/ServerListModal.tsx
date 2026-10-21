@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, Users, Search } from 'lucide-react';
-import { fetchServers, ServerRow } from '../services/serverList';
+import { fetchServers, getServerQuery, ServerRow } from '../services/serverList';
 
 interface Props {
   isOpen: boolean;
@@ -14,7 +14,7 @@ export const ServerListModal: React.FC<Props> = ({ isOpen, onClose, lang }) => {
   const [rows, setRows] = useState<ServerRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => getServerQuery());
   const [updated, setUpdated] = useState<Date | null>(null);
   const ctrlRef = useRef<AbortController | null>(null);
 
@@ -35,6 +35,8 @@ export const ServerListModal: React.FC<Props> = ({ isOpen, onClose, lang }) => {
         if (ctrlRef.current === ctrl) setError(isAr ? 'انتهت مهلة الاتصال. تأكد من الإنترنت وجرّب مرة ثانية.' : 'Connection timed out. Check your internet and try again.');
       } else if (m === 'RATE_LIMIT') {
         setError(isAr ? 'الموقع يطلب الانتظار شوي (طلبات كثيرة). جرّب بعد دقيقة.' : 'The site asks you to wait (too many requests). Try again in a minute.');
+      } else if (m === 'NETWORK') {
+        setError(isAr ? 'ما قدر يوصل لـ BattleMetrics. إذا تستخدم Brave عطّل Shields لهالموقع، أو جرّب شبكة ثانية.' : 'Cannot reach BattleMetrics. On Brave turn Shields off for this site, or try another network.');
       } else if (m === 'NO_DATA') {
         setError(isAr ? 'ما رجعت أي سيرفرات. ممكن المصدر ما يدعم Reforger بهالطريقة.' : 'No servers were returned. The source may not support Reforger this way.');
       } else {

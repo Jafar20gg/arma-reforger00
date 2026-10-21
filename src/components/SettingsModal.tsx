@@ -564,8 +564,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       { key: 'showMapTypeSelector', label: t.visibility.showMapTypeSelector },
                       { key: 'showMarkerControls', label: t.visibility.showMarkerControls },
                       { key: 'showMapTools', label: t.visibility.showMapTools },
-                      { key: 'showFcsButton', label: t.visibility.showFcsButton },
-                      { key: 'showSettingsButton', label: t.visibility.showSettingsButton },
                       { key: 'showZoomControls', label: t.visibility.showZoomControls },
                       { key: 'showBottomCoordinatesHud', label: t.visibility.showBottomCoordinatesHud },
                     ].map((item) => {

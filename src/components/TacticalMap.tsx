@@ -14,6 +14,7 @@ import { formatGridCoord } from '../data/ballistics';
 import { gameToLatLng, createTerrainCRS } from '../services/mapCoordinates';
 import { TRANSLATIONS } from '../locales/translations';
 import { CompassRose } from './CompassRose';
+import { FloatingBox } from './FloatingBox';
 import { bearingDeg, cardinalName, pickCircleStep, circleRadii, circleWeight, pixelsPerMeter } from '../services/compass';
 import { 
   Crosshair, 
@@ -61,8 +62,7 @@ interface TacticalMapProps {
   onOpenMarkerModal: (coords: { x: number; z: number }) => void;
   weather: WeatherSettings;
   onToggleWeather: () => void;
-  onToggleFcs: () => void;
-  onToggleSettings: () => void;
+  onHideCompass?: () => void;
   lang: 'en' | 'ar';
   fitMissionTrigger?: number;
 }
@@ -90,8 +90,7 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
   onOpenMarkerModal,
   weather,
   onToggleWeather,
-  onToggleFcs,
-  onToggleSettings,
+  onHideCompass,
   lang,
   fitMissionTrigger,
 }) => {
@@ -1036,8 +1035,6 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
       {(settings.visibility.showMapTypeSelector ||
         settings.visibility.showMarkerControls ||
         settings.visibility.showMapTools ||
-        settings.visibility.showFcsButton ||
-        settings.visibility.showSettingsButton ||
         settings.visibility.showZoomControls) && (
         <div className="absolute top-2.5 left-2.5 right-12 sm:right-auto z-[1000] flex flex-wrap items-center gap-1.5 md:gap-2 pointer-events-auto max-w-[calc(100vw-5rem)]">
           {/* Layer Switcher (Topo / Satellite / Drawn) */}
@@ -1168,36 +1165,7 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
             </div>
           )}
 
-          {/* Primary Action Buttons: Toggle FCS Panel & Open Settings */}
-          {(settings.visibility.showFcsButton || settings.visibility.showSettingsButton) && (
-            <div className="flex bg-slate-900/90 backdrop-blur-md border border-slate-700/70 rounded-lg p-0.5 md:p-1 shadow-xl items-center gap-1">
-              {settings.visibility.showFcsButton && (
-                <button
-                  onClick={onToggleFcs}
-                  className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded transition-all ${
-                    settings.fcsPanelOpen
-                      ? 'bg-sky-500 text-slate-950 shadow-md font-extrabold'
-                      : 'bg-slate-800 text-sky-400 hover:bg-slate-700'
-                  }`}
-                  title={isAr ? 'فتح أو إخفاء حاسبة الرماية' : 'Toggle Fire Control Panel (FCS)'}
-                >
-                  <Crosshair className="w-3.5 h-3.5" />
-                  <span>{isAr ? 'الحاسبة' : 'FCS Panel'}</span>
-                </button>
-              )}
-
-              {settings.visibility.showSettingsButton && (
-                <button
-                  onClick={onToggleSettings}
-                  className="p-1.5 rounded bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white transition-all flex items-center gap-1 text-xs"
-                  title={t.settingsButton}
-                >
-                  <Settings className="w-4 h-4 text-slate-300" />
-                  <span className="hidden md:inline">{isAr ? 'الإعدادات' : 'Settings'}</span>
-                </button>
-              )}
-            </div>
-          )}
+          {/* FCS calculator + Settings buttons moved to the floating ⋮ menu */}
 
           {/* Zoom In / Out Buttons */}
           {settings.visibility.showZoomControls && (
@@ -1223,9 +1191,9 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
 
       {/* Compass rose (north-up map) */}
       {overlays.showCompass && (
-        <div className="absolute bottom-24 right-3 z-[900] pointer-events-none">
+        <FloatingBox id="compass" corner="bottom-right" offsetX={12} offsetY={96} grip="body" lang={isAr ? 'ar' : 'en'} onHide={onHideCompass}>
           <CompassRose lang={isAr ? 'ar' : 'en'} />
-        </div>
+        </FloatingBox>
       )}
 
       {/* Over-zoom Notice */}

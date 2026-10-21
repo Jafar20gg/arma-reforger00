@@ -1,8 +1,10 @@
 import React from 'react';
 import { 
   AppCustomizationSettings, 
-  InterfaceVisibilitySettings 
+  InterfaceVisibilitySettings,
+  MapOverlaySettings
 } from '../types';
+import { resetWidgetLayout, setWidgetLayout, useWidgetLayout, MIN_SCALE, MAX_SCALE } from '../services/widgetLayout';
 import { TRANSLATIONS } from '../locales/translations';
 import { 
   MoreVertical, 
@@ -25,7 +27,9 @@ import {
   Activity, 
   HelpCircle,
   Sparkles,
-  Shield
+  Shield,
+  Compass,
+  Info
 } from 'lucide-react';
 
 interface ThreeDotMenuProps {
@@ -48,8 +52,45 @@ interface ThreeDotMenuProps {
   onToggleLang: () => void;
   onOpenMortarInfo?: () => void;
   onOpenServers?: () => void;
+  onOpenDiagnostics?: () => void;
+  onOpenHelp?: () => void;
+  failedTiles?: number;
+  overlays?: MapOverlaySettings;
+  onUpdateOverlays?: (patch: Partial<MapOverlaySettings>) => void;
+  showServers?: boolean;
+  onToggleServers?: (v: boolean) => void;
   lang: 'en' | 'ar';
 }
+
+/** One row for a floating widget: show/hide switch + size slider */
+const WidgetRow: React.FC<{ id: string; label: string; on: boolean; onChange: (v: boolean) => void; isAr: boolean }> = ({ id, label, on, onChange, isAr }) => {
+  const layout = useWidgetLayout(id);
+  return (
+    <div className="p-2 rounded-lg bg-slate-950/40 border border-slate-800/80 space-y-2">
+      <div onClick={() => onChange(!on)} className="flex items-center justify-between cursor-pointer">
+        <span className="text-xs text-slate-200 font-semibold select-none">{label}</span>
+        <div className={`w-9 h-5 rounded-full transition-colors p-0.5 flex items-center ${on ? 'bg-sky-500 justify-end' : 'bg-slate-700 justify-start'}`} dir="ltr">
+          <div className="w-4 h-4 rounded-full bg-white shadow-md"></div>
+        </div>
+      </div>
+      {on && (
+        <div className="flex items-center gap-2" dir="ltr">
+          <span className="text-[10px] text-slate-500 shrink-0">{isAr ? 'الحجم' : 'Size'}</span>
+          <input
+            type="range"
+            min={MIN_SCALE}
+            max={MAX_SCALE}
+            step={0.05}
+            value={layout.scale}
+            onChange={(e) => setWidgetLayout(id, { scale: Number(e.target.value) })}
+            className="flex-1 accent-sky-500"
+          />
+          <span className="text-[10px] font-mono text-slate-400 w-9 text-end">{Math.round(layout.scale * 100)}%</span>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   isOpen,
@@ -71,6 +112,13 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   onToggleLang,
   onOpenMortarInfo,
   onOpenServers,
+  onOpenDiagnostics,
+  onOpenHelp,
+  failedTiles = 0,
+  overlays,
+  onUpdateOverlays,
+  showServers,
+  onToggleServers,
   lang,
 }) => {
   const t = TRANSLATIONS[lang];
@@ -125,6 +173,11 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
             <MoreVertical className={iconSizes} />
           )}
         </button>
+        {!isOpen && failedTiles > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center pointer-events-none">
+            {failedTiles > 9 ? '9+' : failedTiles}
+          </span>
+        )}
       </div>
 
       {/* Floating Tactical Drawer / Popup Menu */}
@@ -276,6 +329,60 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
                     <span className="truncate">{isAr ? 'توسيط المهمة' : 'Center Mission'}</span>
                   </button>
 
+                  {/* Settings (moved here from the top bar) */}
+                  <button
+                    onClick={() => {
+                      onClose();
+                      onOpenFullSettings();
+                    }}
+                    className="p-2 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center gap-2 font-bold transition-all"
+                  >
+                    <Settings className="w-4 h-4 shrink-0 text-slate-300" />
+                    <span className="truncate">{isAr ? 'الإعدادات' : 'Settings'}</span>
+                  </button>
+
+                  {/* Language (moved here from the top bar) */}
+                  <button
+                    onClick={onToggleLang}
+                    className="p-2 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sky-400 flex items-center gap-2 font-bold transition-all"
+                  >
+                    <Globe className="w-4 h-4 shrink-0" />
+                    <span className="truncate">{isAr ? 'English (EN)' : 'العربية (AR)'}</span>
+                  </button>
+
+                  {/* Map diagnostics (moved here from the top bar) */}
+                  {onOpenDiagnostics && (
+                    <button
+                      onClick={() => {
+                        onClose();
+                        onOpenDiagnostics();
+                      }}
+                      className={`p-2 rounded-lg border flex items-center gap-2 font-bold transition-all ${
+                        failedTiles > 0 ? 'border-red-500 bg-red-950/60 text-red-300' : 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300'
+                      }`}
+                    >
+                      <Activity className="w-4 h-4 shrink-0 text-sky-400" />
+                      <span className="truncate">{isAr ? 'التشخيص' : 'Diagnostics'}</span>
+                      <span className={`ms-auto text-[10px] px-1.5 rounded font-bold ${failedTiles > 0 ? 'bg-red-500 text-white' : 'bg-slate-900 text-emerald-400'}`}>
+                        {failedTiles > 0 ? `! ${failedTiles}` : 'LIVE'}
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Help (moved here from the top bar) */}
+                  {onOpenHelp && (
+                    <button
+                      onClick={() => {
+                        onClose();
+                        onOpenHelp();
+                      }}
+                      className="p-2 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 font-bold transition-all"
+                    >
+                      <Info className="w-4 h-4 shrink-0 text-slate-400" />
+                      <span className="truncate">{isAr ? 'المساعدة' : 'Help'}</span>
+                    </button>
+                  )}
+
                   {/* Arma Reforger servers (names + player counts) */}
                   {onOpenServers && (
                     <button
@@ -311,6 +418,33 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
                 </div>
               </div>
 
+              {/* Floating widgets: compass + servers (show / hide / size) */}
+              {(overlays && onUpdateOverlays) || onToggleServers ? (
+                <div className="border-t border-slate-800 pt-3">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    {isAr ? 'عناصر عائمة (البوصلة والسيرفرات)' : 'Floating widgets (compass & servers)'}
+                  </label>
+                  <p className="text-[11px] text-slate-500 mb-2">
+                    {isAr ? 'اسحب أي عنصر بإصبعك أو الماوس لتحريكه، واضغط عليه لتظهر أزرار التصغير والتكبير والإخفاء.' : 'Drag a widget to move it; tap it for the smaller / bigger / hide buttons.'}
+                  </p>
+                  <div className="space-y-1.5">
+                    {overlays && onUpdateOverlays && (
+                      <WidgetRow id="compass" isAr={isAr} label={isAr ? 'البوصلة' : 'Compass'} on={!!overlays.showCompass} onChange={(val) => onUpdateOverlays({ showCompass: val })} />
+                    )}
+                    {onToggleServers && (
+                      <WidgetRow id="servers" isAr={isAr} label={isAr ? 'سيرفرات Reforger واللاعبين' : 'Reforger servers & players'} on={showServers !== false} onChange={onToggleServers} />
+                    )}
+                    <button
+                      onClick={() => resetWidgetLayout()}
+                      className="w-full p-2 rounded-lg border border-slate-800 bg-slate-950/50 hover:bg-slate-800 text-slate-300 hover:text-white text-xs flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{isAr ? 'رجّع المواضع والأحجام للأصل' : 'Reset widget positions & sizes'}</span>
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
               {/* Individual Element Visibility Switches */}
               <div className="border-t border-slate-800 pt-3">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
@@ -325,7 +459,6 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
                     { key: 'showMapTypeSelector', label: t.visibility.showMapTypeSelector },
                     { key: 'showMarkerControls', label: t.visibility.showMarkerControls },
                     { key: 'showMapTools', label: t.visibility.showMapTools },
-                    { key: 'showFcsButton', label: t.visibility.showFcsButton },
                     { key: 'showZoomControls', label: t.visibility.showZoomControls },
                     { key: 'showBottomCoordinatesHud', label: t.visibility.showBottomCoordinatesHud },
                   ].map((item) => {
@@ -381,14 +514,6 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
 
               {/* Footer Actions: Switch Language & Open All Settings */}
               <div className="border-t border-slate-800 pt-3 flex items-center gap-2">
-                <button
-                  onClick={onToggleLang}
-                  className="flex-1 py-2 px-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-sky-400 flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Globe className="w-4 h-4" />
-                  <span>{isAr ? 'English (EN)' : 'العربية (AR)'}</span>
-                </button>
-
                 <button
                   onClick={() => {
                     onClose();

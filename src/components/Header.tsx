@@ -1,27 +1,17 @@
 import React from 'react';
-import { TerrainId, TerrainConfig, TileDiagnostics, WeaponConfig, BallisticSolution, InterfaceVisibilitySettings } from '../types';
+import { TerrainId, TerrainConfig, WeaponConfig, BallisticSolution, InterfaceVisibilitySettings } from '../types';
 import { 
   Crosshair, 
-  Activity, 
-  Map as MapIcon, 
-  Info,
-  Globe
+  Map as MapIcon
 } from 'lucide-react';
 
 interface HeaderProps {
   terrains: Record<TerrainId, TerrainConfig>;
   activeTerrainId: TerrainId;
   onSelectTerrain: (id: TerrainId) => void;
-  onOpenDiagnostics: () => void;
-  onOpenHelp: () => void;
-  onOpenSettings: () => void;
-  onToggleFcs: () => void;
-  isFcsOpen: boolean;
-  diagnostics: TileDiagnostics;
   solution?: BallisticSolution;
   selectedWeapon?: WeaponConfig;
   lang: 'en' | 'ar';
-  onToggleLang: () => void;
   visibility?: InterfaceVisibilitySettings;
 }
 
@@ -29,19 +19,13 @@ export const Header: React.FC<HeaderProps> = ({
   terrains,
   activeTerrainId,
   onSelectTerrain,
-  onOpenDiagnostics,
-  onOpenHelp,
-  onOpenSettings,
-  onToggleFcs,
-  isFcsOpen,
-  diagnostics,
   solution,
   selectedWeapon,
   lang,
-  onToggleLang,
   visibility,
 }) => {
   const isSoviet = selectedWeapon?.milSystem === 'SOVIET';
+  const menuPos = visibility?.menuButtonPosition || 'top-right';
 
   const azMilFormatted = solution 
     ? (isSoviet 
@@ -56,7 +40,14 @@ export const Header: React.FC<HeaderProps> = ({
     : '----';
 
   return (
-    <header className="h-14 bg-slate-950 border-b border-slate-800 px-3 sm:px-4 flex items-center justify-between z-10 shrink-0 gap-2">
+    <header
+      className="h-14 bg-slate-950 border-b border-slate-800 px-3 sm:px-4 flex items-center justify-between z-10 shrink-0 gap-2"
+      style={{
+        // keep the top bar content clear of the floating ⋮ button
+        paddingRight: menuPos === 'top-right' ? 60 : undefined,
+        paddingLeft: menuPos === 'top-left' ? 60 : undefined,
+      }}
+    >
       {/* Brand & Title */}
       <div className="flex items-center gap-2.5 sm:gap-3">
         <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
@@ -129,77 +120,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       )}
 
-      {/* Right Tools, Diagnostics, Settings & Language Switcher */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* FCS Panel Toggle Button */}
-        {(!visibility || visibility.showFcsButton) && (
-          <button
-            onClick={onToggleFcs}
-            className={`hidden sm:flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-bold rounded-lg border transition-all ${
-              isFcsOpen
-                ? 'bg-sky-500 text-slate-950 border-sky-400 shadow'
-                : 'bg-slate-900 border-slate-700 text-sky-400 hover:bg-slate-800'
-            }`}
-            title={lang === 'ar' ? 'إظهار / إخفاء حاسبة الرماية' : 'Toggle Fire Control Panel (FCS)'}
-          >
-            <Crosshair className="w-3.5 h-3.5" />
-            <span>{lang === 'ar' ? 'الحاسبة' : 'FCS'}</span>
-          </button>
-        )}
-
-        {/* System Settings Button */}
-        {(!visibility || visibility.showSettingsButton) && (
-          <button
-            onClick={onOpenSettings}
-            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-mono font-bold rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
-            title={lang === 'ar' ? 'الإعدادات والتخصيص الشامل' : 'System Settings & Customization'}
-          >
-            <Crosshair className="w-3.5 h-3.5 hidden" />
-            <span>⚙️</span>
-            <span className="hidden md:inline">{lang === 'ar' ? 'الإعدادات' : 'Settings'}</span>
-          </button>
-        )}
-
-        {/* Arabic / English Language Toggle */}
-        <button
-          onClick={onToggleLang}
-          className="flex items-center gap-1 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-mono font-bold rounded-lg border border-slate-700 bg-slate-900 text-sky-400 hover:text-white hover:bg-slate-800 transition-colors"
-          title={lang === 'ar' ? 'التحويل إلى الإنجليزية (English)' : 'Switch to Arabic (العربية)'}
-        >
-          <Globe className="w-3.5 h-3.5" />
-          <span>{lang === 'ar' ? 'EN' : 'العربية'}</span>
-        </button>
-
-        {/* Developer Diagnostics Button */}
-        <button
-          onClick={onOpenDiagnostics}
-          className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 text-xs font-mono rounded-lg border transition-all ${
-            diagnostics.failedCount > 0
-              ? 'bg-red-950/60 border-red-500 text-red-300 hover:bg-red-900/60'
-              : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800'
-          }`}
-          title="Open Developer Map Diagnostics"
-        >
-          <Activity className="w-3.5 h-3.5 text-sky-400" />
-          <span className="hidden sm:inline">{lang === 'ar' ? 'التشخيص' : 'Diagnostics'}</span>
-          <span
-            className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
-              diagnostics.failedCount > 0 ? 'bg-red-500 text-white' : 'bg-slate-800 text-emerald-400'
-            }`}
-          >
-            {diagnostics.failedCount > 0 ? `! ${diagnostics.failedCount}` : 'LIVE'}
-          </span>
-        </button>
-
-        {/* Quick Help Modal Button */}
-        <button
-          onClick={onOpenHelp}
-          className="p-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-          title="FCS Operation Guide"
-        >
-          <Info className="w-4 h-4" />
-        </button>
-      </div>
+      {/* Calculator, Settings, Language, Diagnostics and Help now live in the floating ⋮ menu */}
     </header>
   );
 };

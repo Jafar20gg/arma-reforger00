@@ -25,6 +25,7 @@ import { DiagnosticsModal } from './components/DiagnosticsModal';
 import { HelpModal } from './components/HelpModal';
 import { ServerListModal } from './components/ServerListModal';
 import { ServerWidget } from './components/ServerWidget';
+import { FloatingBox } from './components/FloatingBox';
 import { SettingsModal } from './components/SettingsModal';
 import { CustomMarkerModal } from './components/CustomMarkerModal';
 import { WeatherWidget } from './components/WeatherWidget';
@@ -382,16 +383,9 @@ export default function App() {
           terrains={TERRAINS}
           activeTerrainId={activeTerrainId}
           onSelectTerrain={handleSelectTerrain}
-          onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
-          onOpenHelp={() => setIsHelpOpen(true)}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onToggleFcs={() => handleUpdateSettings({ fcsPanelOpen: !settings.fcsPanelOpen })}
-          isFcsOpen={settings.fcsPanelOpen}
-          diagnostics={diagnostics}
           solution={solution}
           selectedWeapon={selectedWeapon}
           lang={settings.language}
-          onToggleLang={toggleLang}
           visibility={settings.visibility}
         />
       )}
@@ -461,12 +455,21 @@ export default function App() {
         onToggleLang={toggleLang}
         onOpenMortarInfo={() => setIsMortarInfoOpen(true)}
         onOpenServers={() => setIsServersOpen(true)}
+        onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
+        onOpenHelp={() => setIsHelpOpen(true)}
+        failedTiles={diagnostics.failedCount}
+        overlays={overlays}
+        onUpdateOverlays={handleUpdateOverlays}
+        showServers={showServers}
+        onToggleServers={handleToggleServers}
         lang={settings.language}
       />
 
       {showServers && (
-        <div className={`fixed bottom-24 start-2 z-[900] ${mobileTab === 'map' ? 'block' : 'hidden lg:block'}`}>
-          <ServerWidget lang={settings.language} />
+        <div className={mobileTab === 'map' ? 'contents' : 'hidden lg:contents'}>
+          <FloatingBox id="servers" corner="bottom-left" offsetX={8} offsetY={96} grip="bar" lang={settings.language} onHide={() => handleToggleServers(false)}>
+            <ServerWidget lang={settings.language} />
+          </FloatingBox>
         </div>
       )}
 
@@ -501,8 +504,7 @@ export default function App() {
             onOpenMarkerModal={handleOpenMarkerModal}
             weather={weather}
             onToggleWeather={() => handleUpdateSettings({ weatherPanelOpen: !settings.weatherPanelOpen })}
-            onToggleFcs={() => handleUpdateSettings({ fcsPanelOpen: !settings.fcsPanelOpen })}
-            onToggleSettings={() => setIsSettingsOpen(true)}
+            onHideCompass={() => handleUpdateOverlays({ showCompass: false })}
             lang={settings.language}
             fitMissionTrigger={fitMissionTrigger}
           />
