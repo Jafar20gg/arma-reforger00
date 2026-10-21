@@ -15,6 +15,7 @@ import { gameToLatLng, createTerrainCRS } from '../services/mapCoordinates';
 import { TRANSLATIONS } from '../locales/translations';
 import { CompassRose } from './CompassRose';
 import { FloatingBox } from './FloatingBox';
+import { measurePath } from '../services/distance';
 import { bearingDeg, cardinalName, pickCircleStep, circleRadii, circleWeight, pixelsPerMeter } from '../services/compass';
 import { 
   Crosshair, 
@@ -63,6 +64,8 @@ interface TacticalMapProps {
   weather: WeatherSettings;
   onToggleWeather: () => void;
   onHideCompass?: () => void;
+  /** mil circle of the selected weapon (6400 US, 6000 RU); the ruler reports bearings in the same unit as the calculator */
+  milsPerCircle?: number;
   lang: 'en' | 'ar';
   fitMissionTrigger?: number;
 }
@@ -91,6 +94,7 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
   weather,
   onToggleWeather,
   onHideCompass,
+  milsPerCircle = 6400,
   lang,
   fitMissionTrigger,
 }) => {
@@ -297,8 +301,8 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
       maxZoom: limits.maxZoom,
       bounds: mapBounds,
       noWrap: true,
-      crossOrigin: 'anonymous',
-      keepBuffer: 2,
+      // no crossOrigin: tile pixels are never read, and a CORS-less tile host would otherwise break every tile
+      keepBuffer: L.Browser.mobile ? 1 : 2, // phones: keep fewer off-screen tiles (less memory and data)
       updateWhenIdle: true,
       updateWhenZooming: false,
       errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
@@ -894,8 +898,7 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
       rulerGroup.addLayer(L.marker([p.z, p.x], { icon: ptIcon, interactive: false }));
       setRulerMeasurement(null);
     } else if (rulerPoints.length >= 2) {
-      // Multi-point polyline calculation
-      let totalDist = 0;
+      // Multi-point polyline: all numbers come from game meters (see services/distance.ts)
       const polyCoords: Array<[number, number]> = [];
 
       rulerPoints.forEach((p, idx) => {
@@ -907,22 +910,14 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
           iconAnchor: [7, 7],
         });
         rulerGroup.addLayer(L.marker([p.z, p.x], { icon: dotIcon, interactive: false }));
-
-        if (idx > 0) {
-          const prev = rulerPoints[idx - 1];
-          const segDx = p.x - prev.x;
-          const segDz = p.z - prev.z;
-          totalDist += Math.sqrt(segDx * segDx + segDz * segDz);
-        }
       });
 
       const p1 = rulerPoints[0];
       const p2 = rulerPoints[rulerPoints.length - 1];
-      const overallDx = p2.x - p1.x;
-      const overallDz = p2.z - p1.z;
-      const azRad = (Math.atan2(overallDx, overallDz) + 2 * Math.PI) % (2 * Math.PI);
-      const azDeg = ((azRad * 180) / Math.PI).toFixed(1);
-      const azMils = Math.round((azRad / (2 * Math.PI)) * 6400);
+      const m = measurePath(rulerPoints, milsPerCircle)!;
+      const totalDist = m.total;
+      const azDeg = m.azimuthDeg.toFixed(1);
+      const azMils = Math.round(m.azimuthMils);
 
       setRulerMeasurement({ dist: Math.round(totalDist), azDeg, azMils });
 
@@ -947,7 +942,7 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
     } else {
       setRulerMeasurement(null);
     }
-  }, [rulerPoints, settings.distanceUnit]);
+  }, [rulerPoints, settings.distanceUnit, milsPerCircle]);
 
   // Click-to-place handler
   useEffect(() => {
@@ -1298,22 +1293,36 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
 
       {/* High Failure Rate Warning & Retry Bar */}
       {showFailureWarning && (
-        <div className="absolute bottom-14 left-3 right-3 sm:right-auto z-[1000] bg-amber-950/95 border border-amber-500/80 text-amber-200 text-xs px-4 py-2.5 rounded-lg shadow-2xl backdrop-blur flex items-center justify-between gap-3 pointer-events-auto">
-          <div>
-            <div className="font-bold text-amber-100 flex items-center gap-1.5">
-              <span>{isAr ? 'نسبة عالية من فشل تحميل الخريطة' : 'High tile error rate detected'}</span>
+        <div className="absolute bottom-14 left-3 right-3 sm:right-auto sm:max-w-md z-[1000] bg-amber-950/95 border border-amber-500/80 text-amber-200 text-xs px-4 py-2.5 rounded-lg shadow-2xl backdrop-blur flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="font-bold text-amber-100">
+              {isAr
+                ? `تعذّر تحميل جزء من صور الخريطة (${terrain.name} - ${activeLayer === 'topo' ? 'طبوغرافية' : activeLayer === 'sat' ? 'قمر صناعي' : 'مرسومة'})`
+                : `Part of the map pictures failed to load (${terrain.name} - ${activeLayer})`}
             </div>
             <div className="text-[11px] text-amber-300">
-              {tileErrorCount} of {totalTiles} tiles failed to respond ({Math.round(failureRate * 100)}%). Check network connectivity.
+              {isAr
+                ? `فشل ${tileErrorCount} من ${totalTiles} (${Math.round(failureRate * 100)}%). تأكد من الاتصال، أو أعد المحاولة، أو جرّب طبقة ثانية.`
+                : `${tileErrorCount} of ${totalTiles} failed (${Math.round(failureRate * 100)}%). Check your connection, retry, or try another layer.`}
             </div>
           </div>
-          <button
-            onClick={onRetry}
-            className="flex items-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded font-bold text-xs shadow transition-all whitespace-nowrap"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>{isAr ? 'إعادة تحميل المربعات الفاشلة' : 'Retry Failed Tiles'}</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {activeLayer !== 'topo' && (
+              <button
+                onClick={() => onLayerChange('topo')}
+                className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-bold text-xs shadow transition-all whitespace-nowrap"
+              >
+                {isAr ? 'الطبقة الطبوغرافية' : 'Topo layer'}
+              </button>
+            )}
+            <button
+              onClick={onRetry}
+              className="flex items-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded font-bold text-xs shadow transition-all whitespace-nowrap"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>{isAr ? 'إعادة المحاولة' : 'Retry'}</span>
+            </button>
+          </div>
         </div>
       )}
 

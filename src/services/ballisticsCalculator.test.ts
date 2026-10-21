@@ -54,7 +54,7 @@ describe('Mortar Ballistic Engine - Dynamic Charges & Brackets Validation', () =
       });
     });
 
-    it('2B14 tables are built on the 6000-mil circle and stay inside 748-1415 mils; the max-range row closes at 45.0 deg', () => {
+    it('2B14 tables are built on the 6000-mil circle and stay inside 748-1415 mils; the max-range row closes at the tube minimum (748 mil = 44.9 deg)', () => {
       expect(podnosWeapon.charges.length).toBe(1);
       expect(podnosWeapon.charges[0].charge).toBe(4);
       podnosWeapon.charges.forEach((c) => {
@@ -63,16 +63,19 @@ describe('Mortar Ballistic Engine - Dynamic Charges & Brackets Validation', () =
           expect(p.elevation).toBeGreaterThanOrEqual(748);
           expect(p.elevation).toBeLessThanOrEqual(1415);
         });
-        expect(c.table[c.table.length - 1].elevation).toBe(750); // 45 deg on a 6000 circle
+        expect(c.table[c.table.length - 1].elevation).toBe(748); // tube minimum, 44.9 deg on a 6000 circle (v2.4)
       });
     });
 
-    it('the same angle is used for the same range on both weapons (only the mil circle differs)', () => {
+    it('each weapon reports degrees and mils that agree with its own mil circle (6400 US, 6000 RU)', () => {
+      // The two mortars have different Ring 4 ranges (US 495-2900 m, RU 435-2370 m), so the angle at the
+      // same distance legitimately differs. What must always hold is mils <-> degrees on each weapon's circle.
       const us = calculateSolutionByAmmo(m252Weapon, 'M821_HE', 4, 1000, 0);
       const ru = calculateSolutionByAmmo(podnosWeapon, 'O832DU_HE', 4, 1000, 0);
       expect(us.elevationDeg).not.toBeNull();
       expect(ru.elevationDeg).not.toBeNull();
-      expect(Math.abs(us.elevationDeg! - ru.elevationDeg!)).toBeLessThan(0.3);
+      expect(Math.abs((us.elevationMils! * 360) / 6400 - us.elevationDeg!)).toBeLessThan(0.1);
+      expect(Math.abs((ru.elevationMils! * 360) / 6000 - ru.elevationDeg!)).toBeLessThan(0.1);
       expect(us.elevationMils).not.toBe(ru.elevationMils);
     });
   });
@@ -424,7 +427,7 @@ describe('Mortar Ballistic Engine - Dynamic Charges & Brackets Validation', () =
       expect(sol.warning).toMatch(/maximum range/);
     });
 
-    it('refuses a height-corrected solution when the table has no D ELEV column', () => {
+    it('refuses (no invented value) a height-corrected solution that the exact model cannot reach', () => {
       const bareWeapon = {
         ...m252Weapon,
         ammunition: undefined,
@@ -439,7 +442,7 @@ describe('Mortar Ballistic Engine - Dynamic Charges & Brackets Validation', () =
       expect(flat.elevationMils).toBe(1350);
       const hill = solveMortarFireMission({ weapon: bareWeapon, gunPos: { x: 0, z: 0, alt: 0 }, targetPos: { x: 0, z: 150, alt: 50 }, preferredCharge: 0 });
       expect(hill.elevationMils).toBeNull();
-      expect(hill.warning).toMatch(/D ELEV/);
+      expect(hill.warning).toMatch(/cannot be reached/i); // v2.7: exact vacuum-model correction, no D ELEV column needed
     });
 
     it('rejects a corrected elevation beyond the tube limit instead of displaying it', () => {

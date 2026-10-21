@@ -34,3 +34,28 @@ export function distanceBreakdown(gun: Pos, target: Pos, milsPerCircle: number):
     azimuthMils: (az / 360) * milsPerCircle,
   };
 }
+
+export interface PathMeasure {
+  total: number; // sum of the straight segments (m)
+  segments: number[]; // length of each segment (m)
+  straight: number; // first point -> last point (m)
+  azimuthDeg: number; // first -> last, clockwise from north
+  azimuthMils: number; // first -> last, in the given mil circle
+}
+
+/** Ruler maths: every length comes from game meters only, never from pixels or zoom. */
+export function measurePath(points: Array<{ x: number; z: number }>, milsPerCircle: number): PathMeasure | null {
+  if (points.length < 2) return null;
+  const segments: number[] = [];
+  for (let i = 1; i < points.length; i++) {
+    segments.push(Math.hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z));
+  }
+  const overall = distanceBreakdown(points[0], points[points.length - 1], milsPerCircle);
+  return {
+    total: segments.reduce((a, b) => a + b, 0),
+    segments,
+    straight: overall.horizontal,
+    azimuthDeg: overall.azimuthDeg,
+    azimuthMils: overall.azimuthMils,
+  };
+}

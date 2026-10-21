@@ -512,6 +512,7 @@ export default function App() {
             weather={weather}
             onToggleWeather={() => handleUpdateSettings({ weatherPanelOpen: !settings.weatherPanelOpen })}
             onHideCompass={() => handleUpdateOverlays({ showCompass: false })}
+            milsPerCircle={selectedWeapon.milsPerCircle}
             lang={settings.language}
             fitMissionTrigger={fitMissionTrigger}
           />

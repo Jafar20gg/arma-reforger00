@@ -1,5 +1,11 @@
 import { TerrainConfig, TerrainId } from '../types';
 
+/**
+ * Where the map pictures come from. Default is Enfumap (license/permission still unverified, see docs/phase3-report.md).
+ * To use another host (for example your own copy of the tiles) set VITE_TILE_HOST at build time, no code change needed.
+ */
+const TILE_HOST: string = ((import.meta as any).env?.VITE_TILE_HOST || 'https://enfumap.com').replace(/\/+$/, '');
+
 export const TERRAINS: Record<TerrainId, TerrainConfig> = {
   everon: {
     id: 'everon',
@@ -14,9 +20,9 @@ export const TERRAINS: Record<TerrainId, TerrainConfig> = {
     defaultWeapon: [4800, 7100], // Near Montignac
     defaultTarget: [5760, 7060], // Entre Deux
     layers: {
-      topo: 'https://enfumap.com/tiles/everon/{z}/{x}/{y}.webp?v=1790937841',
-      sat: 'https://enfumap.com/tiles/everon/sat/{z}/{x}/{y}.webp?v=1791307910',
-      drawn: 'https://enfumap.com/tiles/everon/drawn/{z}/{x}/{y}.webp?v=1792004898',
+      topo: `${TILE_HOST}/tiles/everon/{z}/{x}/{y}.webp?v=1790937841`,
+      sat: `${TILE_HOST}/tiles/everon/sat/{z}/{x}/{y}.webp?v=1791307910`,
+      drawn: `${TILE_HOST}/tiles/everon/drawn/{z}/{x}/{y}.webp?v=1792004898`,
     },
     layerZoomLimits: {
       topo: { maxNativeZoom: 7, maxZoom: 8 },
@@ -83,9 +89,9 @@ export const TERRAINS: Record<TerrainId, TerrainConfig> = {
     defaultWeapon: [2776, 1623], // Arleville area
     defaultTarget: [3166, 2800], // Beauregard area
     layers: {
-      topo: 'https://enfumap.com/tiles/arland/{z}/{x}/{y}.webp?v=1790938027',
-      sat: 'https://enfumap.com/tiles/arland/sat/{z}/{x}/{y}.webp?v=1791308331',
-      drawn: 'https://enfumap.com/tiles/arland/drawn/{z}/{x}/{y}.webp?v=1792025896',
+      topo: `${TILE_HOST}/tiles/arland/{z}/{x}/{y}.webp?v=1790938027`,
+      sat: `${TILE_HOST}/tiles/arland/sat/{z}/{x}/{y}.webp?v=1791308331`,
+      drawn: `${TILE_HOST}/tiles/arland/drawn/{z}/{x}/{y}.webp?v=1792025896`,
     },
     layerZoomLimits: {
       topo: { maxNativeZoom: 7, maxZoom: 8 },
@@ -111,8 +117,8 @@ export const TERRAINS: Record<TerrainId, TerrainConfig> = {
     defaultWeapon: [5100, 4800],
     defaultTarget: [6200, 5600],
     layers: {
-      topo: 'https://enfumap.com/tiles/kolguyev/{z}/{x}/{y}.webp?v=1790938259',
-      sat: 'https://enfumap.com/tiles/kolguyev/sat/{z}/{x}/{y}.webp?v=1791309426',
+      topo: `${TILE_HOST}/tiles/kolguyev/{z}/{x}/{y}.webp?v=1790938259`,
+      sat: `${TILE_HOST}/tiles/kolguyev/sat/{z}/{x}/{y}.webp?v=1791309426`,
     },
     layerZoomLimits: {
       topo: { maxNativeZoom: 7, maxZoom: 8 },
