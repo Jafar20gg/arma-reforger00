@@ -73,6 +73,8 @@ export const HELP_TEXTS: Record<string, HelpText> = {
   distUnit: h('وحدة المسافة', 'الوحدة اللي تظهر بها المسافات.', 'Distance Unit', 'The unit distances are shown in.'),
   weatherHud: h('نافذة الطقس والرياح', 'تظهر نافذة صغيرة على الخريطة تدخل بها سرعة الرياح واتجاهها (من وين تجي). الحاسبة تستخدمها لتصحيح الرمية.', 'Weather HUD', 'Shows a small window on the map where you enter wind speed and direction (where it comes from). The calculator uses it to correct the shot.'),
 
+  serverWidget: h('قائمة السيرفرات على الخريطة', 'لوحة صغيرة تظهر لوحدها فوق الخريطة وتعرض أكثر سيرفرات Arma Reforger لاعبين، باسم السيرفر وعدد اللاعبين (مثل 42/64). تتحدث تلقائياً كل دقيقة بدون ما تضغط شي. طفّها إذا تحس إنها تغطي الخريطة. المصدر موقع BattleMetrics.', 'Server list on the map', 'A small panel that appears on its own over the map and shows the busiest Arma Reforger servers with name and player count (like 42/64). It refreshes by itself every minute, nothing to tap. Turn it off if it covers the map. Source: BattleMetrics.'),
+
   // ---- Calculator panel ----
   fcsAzimuth: h('السمت (الاتجاه)', 'الزاوية اللي توجّه عليها الهاون: من الشمال باتجاه عقارب الساعة. تظهر بالمل (اللي تحتاجه) وبالدرجات.', 'Azimuth', 'The direction to aim the mortar: clockwise from north. Shown in mils (what you need) and degrees.'),
   fcsElevation: h('زاوية الارتفاع', 'ارتفاع سبطانة الهاون. زاوية أعلى = قذيفة تنزل أقرب وأكثر عمودية. تظهر بالدرجات والمل.', 'Elevation', 'How high the mortar tube is raised. A higher angle = a shorter, steeper shot. Shown in degrees and mils.'),

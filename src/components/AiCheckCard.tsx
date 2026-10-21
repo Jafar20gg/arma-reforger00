@@ -42,6 +42,7 @@ export const AiCheckCard: React.FC<Props> = ({ ai, weaponName, milsPerCircle, gu
         m === 'NO_KEY' ? (isAr ? 'أدخل مفتاح API في الإعدادات أولاً.' : 'Enter your API key in Settings first.')
         : m === 'BAD_KEY' ? (isAr ? 'المفتاح غير صحيح أو غير مسموح.' : 'The API key was rejected.')
         : m === 'BAD_REPLY' ? (isAr ? 'رد الذكاء الاصطناعي غير مفهوم، جرّب مرة ثانية.' : 'The AI reply could not be read, try again.')
+        : /^HTTP_(503|429|500|502|504)/.test(m) ? (isAr ? 'سيرفرات Google مشغولة حالياً (ضغط عالي). المشكلة ليست من مفتاحك ولا من البرنامج. انتظر دقيقة وجرّب مرة ثانية.' : 'Google’s servers are busy right now (high demand). This is not your key or the app. Wait a minute and try again.')
         : (isAr ? 'تعذّر الاتصال بالذكاء الاصطناعي: ' : 'Could not reach the AI: ') + m
       );
     } finally {

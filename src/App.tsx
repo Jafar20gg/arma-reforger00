@@ -23,6 +23,8 @@ import { TacticalMap } from './components/TacticalMap';
 import { FireControlPanel } from './components/FireControlPanel';
 import { DiagnosticsModal } from './components/DiagnosticsModal';
 import { HelpModal } from './components/HelpModal';
+import { ServerListModal } from './components/ServerListModal';
+import { ServerWidget } from './components/ServerWidget';
 import { SettingsModal } from './components/SettingsModal';
 import { CustomMarkerModal } from './components/CustomMarkerModal';
 import { WeatherWidget } from './components/WeatherWidget';
@@ -53,6 +55,14 @@ export default function App() {
   const [markerModalCoords, setMarkerModalCoords] = useState<{ x: number; z: number }>({ x: 0, z: 0 });
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isServersOpen, setIsServersOpen] = useState(false);
+  const [showServers, setShowServers] = useState<boolean>(() => {
+    try { return localStorage.getItem('fcs_show_servers') !== '0'; } catch { return true; }
+  });
+  const handleToggleServers = useCallback((v: boolean) => {
+    setShowServers(v);
+    try { localStorage.setItem('fcs_show_servers', v ? '1' : '0'); } catch { /* ignore */ }
+  }, []);
   const [isMortarInfoOpen, setIsMortarInfoOpen] = useState(false);
   const [fitMissionTrigger, setFitMissionTrigger] = useState<number>(0);
   const [isRulerActive, setIsRulerActive] = useState<boolean>(false);
@@ -450,8 +460,17 @@ export default function App() {
         onFitMission={handleFitMission}
         onToggleLang={toggleLang}
         onOpenMortarInfo={() => setIsMortarInfoOpen(true)}
+        onOpenServers={() => setIsServersOpen(true)}
         lang={settings.language}
       />
+
+      {showServers && (
+        <div className={`fixed bottom-24 start-2 z-[900] ${mobileTab === 'map' ? 'block' : 'hidden lg:block'}`}>
+          <ServerWidget lang={settings.language} />
+        </div>
+      )}
+
+      <ServerListModal isOpen={isServersOpen} onClose={() => setIsServersOpen(false)} lang={settings.language} />
 
       {/* Main Workspace Layout (Map-Only Primary Interface with Collapsible Sidebar) */}
       <div className={`flex-1 flex min-h-0 overflow-hidden relative ${
@@ -534,6 +553,8 @@ export default function App() {
 
       {/* Comprehensive Settings Modal */}
       <SettingsModal
+        showServers={showServers}
+        onToggleServers={handleToggleServers}
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}

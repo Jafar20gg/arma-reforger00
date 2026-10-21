@@ -74,6 +74,8 @@ interface SettingsModalProps {
   onQuickShowAll?: () => void;
   onQuickRestoreDefault?: () => void;
   onOpenMortarInfo?: () => void;
+  showServers?: boolean;
+  onToggleServers?: (v: boolean) => void;
 }
 
 /** Touch-friendly number input with big -/+ buttons (works on phones). */
@@ -126,6 +128,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onQuickShowAll,
   onQuickRestoreDefault,
   onOpenMortarInfo,
+  showServers,
+  onToggleServers,
 }) => {
   const t = TRANSLATIONS[settings.language];
   const isAr = settings.language === 'ar';
@@ -373,6 +377,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             {(
               <div className="p-4 space-y-4 border-t border-slate-800/80">
+                {onToggleServers && (
+                  <label className="flex items-center justify-between p-2.5 rounded bg-slate-900 border border-slate-800 cursor-pointer">
+                    <span>{isAr ? 'إظهار قائمة سيرفرات Reforger على الخريطة' : 'Show Reforger server list on the map'}<InfoTip id="serverWidget" isAr={isAr} /></span>
+                    <input
+                      type="checkbox"
+                      checked={showServers !== false}
+                      onChange={(e) => onToggleServers(e.target.checked)}
+                      className="w-4 h-4 accent-sky-500 rounded"
+                    />
+                  </label>
+                )}
+
                 <div>
                   <label className="text-[13px] font-bold text-slate-400 block mb-1.5 uppercase">
                     {isAr ? 'أنماط التخطيط السريعة (Layout Presets)' : 'Layout Presets'}<InfoTip id="layoutPresets" isAr={isAr} />

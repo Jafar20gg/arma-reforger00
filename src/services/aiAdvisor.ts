@@ -64,7 +64,7 @@ function userPayload(input: AdvisorInput): string {
 export async function askAdvisor(ai: AiSettings, input: AdvisorInput): Promise<AdvisorResult> {
   if (!ai.apiKey.trim()) throw new Error('NO_KEY');
   const ctrl = new AbortController();
-  const timer = window.setTimeout(() => ctrl.abort(), 25000);
+  const timer = window.setTimeout(() => ctrl.abort(), 60000);
   const system = SYSTEM + (input.lang === 'ar' ? ' Write the notes in Arabic.' : ' Write the notes in English.');
   try {
     let res: Response;
@@ -86,24 +86,30 @@ export async function askAdvisor(ai: AiSettings, input: AdvisorInput): Promise<A
         }),
       });
     } else {
-      const models = Array.from(new Set([ai.model || 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.5-flash']));
+      // Google sometimes answers 503 ("high demand") or 429 (too many requests). That is temporary and not the key's fault,
+      // so retry once and then fall back to other models. 404 = this model name is not available for this key.
+      const models = Array.from(new Set([ai.model || 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite']));
+      const body = JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: 'user', parts: [{ text: userPayload(input) }] }],
+        // Thinking tokens count toward the output limit, so keep it generous or the JSON gets cut off.
+        generationConfig: { temperature: 0, maxOutputTokens: 4096, responseMimeType: 'application/json' },
+      });
+      const busy = (st: number) => st === 503 || st === 429 || st === 500 || st === 502 || st === 504;
       let last: Response | null = null;
-      for (const m of models) {
-        last = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`,
-          {
-            method: 'POST',
-            signal: ctrl.signal,
-            headers: { 'content-type': 'application/json', 'x-goog-api-key': ai.apiKey.trim() },
-            body: JSON.stringify({
-              systemInstruction: { parts: [{ text: system }] },
-              contents: [{ role: 'user', parts: [{ text: userPayload(input) }] }],
-              // Thinking tokens count toward the output limit, so keep it generous or the JSON gets cut off.
-              generationConfig: { temperature: 0, maxOutputTokens: 4096, responseMimeType: 'application/json' },
-            }),
+      outer: for (const m of models) {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          last = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`,
+            { method: 'POST', signal: ctrl.signal, headers: { 'content-type': 'application/json', 'x-goog-api-key': ai.apiKey.trim() }, body }
+          );
+          if (last.ok || last.status === 401 || last.status === 403) break outer;
+          if (busy(last.status) && attempt === 0) {
+            await new Promise((r) => setTimeout(r, 1500));
+            continue;
           }
-        );
-        if (last.status !== 404) break; // 404 = model name not available for this key -> try the next one
+          break; // 404 or still busy -> next model
+        }
       }
       res = last as Response;
     }

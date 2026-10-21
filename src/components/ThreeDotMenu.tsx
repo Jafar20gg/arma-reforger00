@@ -47,6 +47,7 @@ interface ThreeDotMenuProps {
   onFitMission: () => void;
   onToggleLang: () => void;
   onOpenMortarInfo?: () => void;
+  onOpenServers?: () => void;
   lang: 'en' | 'ar';
 }
 
@@ -69,6 +70,7 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   onFitMission,
   onToggleLang,
   onOpenMortarInfo,
+  onOpenServers,
   lang,
 }) => {
   const t = TRANSLATIONS[lang];
@@ -273,6 +275,22 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
                     <RotateCcw className="w-4 h-4 shrink-0 text-slate-400" />
                     <span className="truncate">{isAr ? 'توسيط المهمة' : 'Center Mission'}</span>
                   </button>
+
+                  {/* Arma Reforger servers (names + player counts) */}
+                  {onOpenServers && (
+                    <button
+                      onClick={() => {
+                        onClose();
+                        onOpenServers();
+                      }}
+                      className="col-span-2 p-2.5 rounded-lg border border-emerald-500/40 bg-emerald-950/30 hover:bg-emerald-900/40 text-emerald-300 hover:text-white flex items-center justify-between font-bold text-sm transition-all shadow-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-emerald-400" />
+                        <span>{isAr ? 'سيرفرات Arma Reforger واللاعبين' : 'Reforger Servers & Players'}</span>
+                      </div>
+                    </button>
+                  )}
 
                   {/* Mortar Information System Launch Button */}
                   {onOpenMortarInfo && (
