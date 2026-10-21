@@ -31,6 +31,7 @@ interface FireControlPanelProps {
   onTargetChange: (pos: { x: number; z: number; alt: number }) => void;
   solution: BallisticSolution;
   lang?: 'en' | 'ar';
+  tuning?: { rangeScalePct: number; elevationOffsetMils: number };
 }
 
 export const FireControlPanel: React.FC<FireControlPanelProps> = ({
@@ -48,6 +49,7 @@ export const FireControlPanel: React.FC<FireControlPanelProps> = ({
   onTargetChange,
   solution,
   lang = 'en',
+  tuning,
 }) => {
   const [gridInputGun, setGridInputGun] = useState('');
   const [gridInputTarget, setGridInputTarget] = useState('');
@@ -498,6 +500,12 @@ export const FireControlPanel: React.FC<FireControlPanelProps> = ({
           </div>
         </div>
 
+
+        {tuning && (tuning.rangeScalePct !== 0 || tuning.elevationOffsetMils !== 0) && (
+          <div className="rounded-lg border border-amber-600/50 bg-amber-950/30 px-3 py-1.5 text-[11px] text-amber-300 font-mono">
+            {isAr ? 'معايرة شخصية فعّالة' : 'Personal calibration active'}: {tuning.rangeScalePct > 0 ? '+' : ''}{tuning.rangeScalePct}% {isAr ? 'مدى' : 'range'} · {tuning.elevationOffsetMils > 0 ? '+' : ''}{tuning.elevationOffsetMils} {isAr ? 'مل' : 'mil'}
+          </div>
+        )}
 
         {/* Elevation scale in degrees (separate from distance circles) */}
         <ElevationGauge

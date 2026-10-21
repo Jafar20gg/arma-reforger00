@@ -5,7 +5,9 @@ import {
   WeatherSettings, 
   CustomMapMarker, 
   CustomMortarConfig,
-  AppExportData 
+  AppExportData,
+  WeaponTuning,
+  WeaponTunings
 } from '../types';
 
 const STORAGE_KEYS = {
@@ -14,6 +16,7 @@ const STORAGE_KEYS = {
   WEATHER: 'arma_reforger_fcs_weather_v1',
   MARKERS: 'arma_reforger_fcs_markers_v1',
   MORTARS: 'arma_reforger_fcs_mortars_v1',
+  TUNING: 'arma_reforger_fcs_tuning_v1',
 };
 
 export const DEFAULT_VISIBILITY: InterfaceVisibilitySettings = {
@@ -84,6 +87,7 @@ export const DEFAULT_OVERLAYS: MapOverlaySettings = {
   showDistanceCircles: true,
   showCompass: true,
   distanceCircleStep: 0,
+  mapLabelLanguage: 'auto',
   labelSize: 'md',
   labelColor: '#38bdf8',
 };
@@ -182,6 +186,7 @@ export function sanitizeOverlays(raw: unknown): MapOverlaySettings {
     if (typeof d[k] === 'boolean') (out as any)[k] = bool(r[k], d[k] as boolean);
   });
   out.labelSize = oneOf(r.labelSize, SIZES, d.labelSize);
+  out.mapLabelLanguage = oneOf(r.mapLabelLanguage, ['auto', 'en', 'ar', 'both'] as const, 'auto');
   out.distanceCircleStep = [0, 100, 250, 500, 1000].includes(r.distanceCircleStep as number) ? (r.distanceCircleStep as number) : 0;
   out.labelColor = color(r.labelColor, d.labelColor);
   return out;
@@ -247,6 +252,23 @@ export function sanitizeMortars(raw: unknown): CustomMortarConfig[] {
   return out;
 }
 
+export const DEFAULT_TUNING: WeaponTuning = { rangeScalePct: 0, elevationOffsetMils: 0 };
+
+export function sanitizeTunings(raw: unknown): WeaponTunings {
+  const out: WeaponTunings = {};
+  if (!isObj(raw)) return out;
+  Object.keys(raw).slice(0, 50).forEach((id) => {
+    const v = raw[id];
+    if (!isObj(v)) return;
+    const t: WeaponTuning = {
+      rangeScalePct: Math.round(num(v.rangeScalePct, -20, 20, 0) * 10) / 10,
+      elevationOffsetMils: Math.round(num(v.elevationOffsetMils, -60, 60, 0)),
+    };
+    if (t.rangeScalePct !== 0 || t.elevationOffsetMils !== 0) out[str(id, id, 80)] = t;
+  });
+  return out;
+}
+
 function readJson(key: string): unknown {
   try {
     const storage = getStorage();
@@ -290,6 +312,10 @@ export const StorageService = {
     return sanitizeMortars(readJson(STORAGE_KEYS.MORTARS));
   },
 
+  loadTunings(): WeaponTunings {
+    return sanitizeTunings(readJson(STORAGE_KEYS.TUNING));
+  },
+
   // Savers
   saveSettings(settings: AppCustomizationSettings) {
     safeSet(STORAGE_KEYS.SETTINGS, settings);
@@ -307,6 +333,10 @@ export const StorageService = {
     safeSet(STORAGE_KEYS.MARKERS, markers);
   },
 
+  saveTunings(t: WeaponTunings) {
+    safeSet(STORAGE_KEYS.TUNING, t);
+  },
+
   saveCustomMortars(mortars: CustomMortarConfig[]) {
     safeSet(STORAGE_KEYS.MORTARS, mortars);
   },
@@ -317,7 +347,8 @@ export const StorageService = {
     overlaySettings: MapOverlaySettings,
     weatherSettings: WeatherSettings,
     customMarkers: CustomMapMarker[],
-    customMortars: CustomMortarConfig[]
+    customMortars: CustomMortarConfig[],
+    weaponTunings: WeaponTunings = {}
   ) {
     const backup: AppExportData = {
       schemaVersion: 1,
@@ -328,6 +359,7 @@ export const StorageService = {
       weatherSettings,
       customMarkers,
       customMortars,
+      weaponTunings,
     };
 
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -359,6 +391,7 @@ export const StorageService = {
         weatherSettings: sanitizeWeather(parsed.weatherSettings),
         customMarkers: sanitizeMarkers(parsed.customMarkers),
         customMortars: sanitizeMortars(parsed.customMortars),
+        weaponTunings: sanitizeTunings(parsed.weaponTunings),
       };
     } catch {
       return null;
@@ -461,6 +494,7 @@ export const StorageService = {
     safeSet(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
     safeSet(STORAGE_KEYS.OVERLAYS, DEFAULT_OVERLAYS);
     safeSet(STORAGE_KEYS.WEATHER, DEFAULT_WEATHER);
+    safeSet(STORAGE_KEYS.TUNING, {});
     return { ...DEFAULT_SETTINGS };
   },
 
@@ -479,6 +513,7 @@ export const StorageService = {
       storage.removeItem(STORAGE_KEYS.WEATHER);
       storage.removeItem(STORAGE_KEYS.MARKERS);
       storage.removeItem(STORAGE_KEYS.MORTARS);
+      storage.removeItem(STORAGE_KEYS.TUNING);
     } catch (err) {
       console.warn('Factory reset localStorage error:', err);
     }

@@ -5,6 +5,9 @@ import {
   WeatherSettings, 
   CustomMapMarker, 
   CustomMortarConfig, 
+  WeaponConfig,
+  WeaponTuning,
+  WeaponTunings,
   AppTheme, 
   LayoutPreset,
   DistanceUnit,
@@ -55,6 +58,9 @@ interface SettingsModalProps {
   onAddMarker: (marker: CustomMapMarker) => void;
   onDeleteMarker: (id: string) => void;
   customMortars: CustomMortarConfig[];
+  tunableWeapons: WeaponConfig[];
+  tunings: WeaponTunings;
+  onUpdateTuning: (weaponId: string, tuning: WeaponTuning | null) => void;
   onAddMortar: (mortar: CustomMortarConfig) => void;
   onDeleteMortar: (id: string) => void;
   onImportBackup: (importedData: any) => void;
@@ -64,6 +70,30 @@ interface SettingsModalProps {
   onQuickRestoreDefault?: () => void;
   onOpenMortarInfo?: () => void;
 }
+
+/** Touch-friendly number input with big -/+ buttons (works on phones). */
+const Stepper: React.FC<{ label: string; value: number; step: number; min: number; max: number; onChange: (v: number) => void }> = ({ label, value, step, min, max, onChange }) => {
+  const clamp = (v: number) => Math.min(max, Math.max(min, Math.round(v * 10) / 10));
+  return (
+    <div className="flex items-center justify-between gap-2" dir="ltr">
+      <span className="text-[11px] text-slate-400 min-w-[84px]" dir="auto">{label}</span>
+      <div className="flex items-center gap-1">
+        <button type="button" onClick={() => onChange(clamp(value - step))} className="stepper-btn w-10 h-10 rounded bg-slate-800 text-white text-lg font-bold">−</button>
+        <input
+          type="number"
+          inputMode="decimal"
+          value={value}
+          step={step}
+          min={min}
+          max={max}
+          onChange={(e) => onChange(clamp(parseFloat(e.target.value) || 0))}
+          className="w-20 h-10 text-center bg-slate-900 border border-slate-700 rounded text-slate-100"
+        />
+        <button type="button" onClick={() => onChange(clamp(value + step))} className="stepper-btn w-10 h-10 rounded bg-slate-800 text-white text-lg font-bold">+</button>
+      </div>
+    </div>
+  );
+};
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -78,6 +108,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onAddMarker,
   onDeleteMarker,
   customMortars,
+  tunableWeapons,
+  tunings,
+  onUpdateTuning,
   onAddMortar,
   onDeleteMortar,
   onImportBackup,
@@ -87,8 +120,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onQuickRestoreDefault,
   onOpenMortarInfo,
 }) => {
-  if (!isOpen) return null;
-
   const t = TRANSLATIONS[settings.language];
   const isAr = settings.language === 'ar';
 
@@ -133,7 +164,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       overlays,
       weather,
       customMarkers,
-      customMortars
+      customMortars,
+      tunings
     );
     notify(t.storage.exportSuccess);
   };
@@ -211,14 +243,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     notify(isAr ? `تم تطبيق المظهر المسبق: ${preset}` : `Applied layout preset: ${preset}`);
   };
 
+  // NOTE: must stay after every hook above (an early return before hooks crashes React when the modal opens)
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
+    <div className="settings-overlay fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-stretch sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
       <div 
-        className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl flex flex-col w-full max-w-3xl max-h-[92vh] overflow-hidden text-slate-200"
+        className="settings-modal bg-slate-900 sm:border border-slate-700/80 sm:rounded-2xl shadow-2xl flex flex-col w-full max-w-none sm:max-w-3xl h-full sm:h-auto sm:max-h-[92vh] overflow-hidden text-slate-200"
         dir={isAr ? 'rtl' : 'ltr'}
       >
         {/* Header */}
-        <div className="p-4 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between shrink-0">
+        <div className="settings-header p-3 sm:p-4 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between shrink-0 gap-2">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
               <Sliders className="w-4 h-4" />
@@ -235,7 +270,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+            className="settings-close p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors shrink-0"
             title={t.close}
           >
             <X className="w-5 h-5" />
@@ -251,7 +286,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         )}
 
         {/* Scrollable Categories List */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-3 font-mono text-xs">
+        <div className="settings-body flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 space-y-3 font-mono text-xs">
           
           {/* 1. GENERAL SETTINGS */}
           <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/40">
@@ -642,6 +677,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     : 'Independent visibility controls for geographic place names, towns, villages, and elevation landmarks.'}
                 </p>
 
+                <label className="flex items-center justify-between gap-3 p-2 rounded bg-slate-900 border border-slate-800">
+                  <span>{isAr ? 'لغة أسماء الخريطة' : 'Map place-name language'}</span>
+                  <select
+                    value={overlays.mapLabelLanguage}
+                    onChange={(e) => onUpdateOverlays({ mapLabelLanguage: e.target.value as MapOverlaySettings['mapLabelLanguage'] })}
+                    className="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200"
+                  >
+                    <option value="auto">{isAr ? 'تلقائي (لغة الواجهة)' : 'Auto (UI language)'}</option>
+                    <option value="en">English</option>
+                    <option value="ar">{isAr ? 'عربي (بنطق إنجليزي)' : 'Arabic spelling'}</option>
+                    <option value="both">{isAr ? 'الاثنين معاً' : 'Both'}</option>
+                  </select>
+                </label>
+
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   <label className="flex items-center justify-between p-2 rounded bg-slate-900 border border-slate-800 cursor-pointer">
                     <span>{isAr ? 'العواصم والمدن الكبرى' : 'Capitals'}</span>
@@ -915,6 +964,54 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </span>
                     </button>
                   )}
+                </div>
+
+                {/* Personal calibration: each user can nudge each mortar a bit under/over the standard values */}
+                <div className="pt-3 border-t border-slate-850 space-y-2">
+                  <div className="font-bold text-slate-300">
+                    {isAr ? 'معايرة الهاون الشخصية (أقل أو أكثر من القياس)' : 'Personal mortar calibration (a bit under / over standard)'}
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    {isAr
+                      ? 'القيم الافتراضية صفر = بيانات اللعبة القياسية. إذا القذيفة تسقط أبعد من المطلوب، زِد نسبة المدى؛ وإذا تسقط أقرب، قلّلها. تنحفظ عندك في المتصفح فقط.'
+                      : 'Default 0 = standard game data. If shells land long (farther than the table), raise the range %; if short, lower it. Saved only in your browser.'}
+                  </p>
+                  {tunableWeapons.map((w) => {
+                    const cur: WeaponTuning = tunings[w.id] ?? { rangeScalePct: 0, elevationOffsetMils: 0 };
+                    const set = (patch: Partial<WeaponTuning>) => onUpdateTuning(w.id, { ...cur, ...patch });
+                    const changed = cur.rangeScalePct !== 0 || cur.elevationOffsetMils !== 0;
+                    return (
+                      <div key={w.id} className="p-2 rounded bg-slate-950 border border-slate-800 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-white">{w.shortName || w.name}</span>
+                          <button
+                            type="button"
+                            disabled={!changed}
+                            onClick={() => onUpdateTuning(w.id, null)}
+                            className="text-[10px] px-2 py-1 rounded border border-slate-700 text-slate-300 disabled:opacity-40"
+                          >
+                            {isAr ? 'رجوع للقياسي' : 'Reset'}
+                          </button>
+                        </div>
+                        <Stepper
+                          label={isAr ? 'المدى %' : 'Range %'}
+                          value={cur.rangeScalePct}
+                          step={0.5}
+                          min={-20}
+                          max={20}
+                          onChange={(v) => set({ rangeScalePct: v })}
+                        />
+                        <Stepper
+                          label={isAr ? 'الارتفاع (مل)' : 'Elevation (mil)'}
+                          value={cur.elevationOffsetMils}
+                          step={1}
+                          min={-60}
+                          max={60}
+                          onChange={(v) => set({ elevationOffsetMils: v })}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Display Formatting & Precision */}

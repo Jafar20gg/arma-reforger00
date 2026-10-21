@@ -21,6 +21,7 @@ import {
   M252_AMMUNITION,
   PODNOS_AMMUNITION,
   WEAPONS,
+  calculateFiringSolution,
 } from '../data/ballistics';
 
 describe('Mortar Ballistic Engine - Dynamic Charges & Brackets Validation', () => {
@@ -464,3 +465,42 @@ describe('Mortar Ballistic Engine - Dynamic Charges & Brackets Validation', () =
   });
 });
 
+
+describe('personal weapon calibration', () => {
+  const m252Weapon = WEAPONS.find((w) => w.id === 'm252_81mm')!;
+  const g = { x: 0, z: 0, alt: 0 };
+  const at = (d: number) => ({ x: 0, z: d, alt: 0 });
+  it('zero tuning equals standard data', () => {
+    const a = calculateFiringSolution(m252Weapon, g, at(1500), -1);
+    const b = calculateFiringSolution(m252Weapon, g, at(1500), -1, undefined, { rangeScalePct: 0, elevationOffsetMils: 0 });
+    expect(b.elevationMils).toBe(a.elevationMils);
+  });
+  it('+5% range makes 1575 m use the standard 1500 m elevation', () => {
+    const std = calculateFiringSolution(m252Weapon, g, at(1500), -1);
+    const tuned = calculateFiringSolution(m252Weapon, g, at(1575), -1, undefined, { rangeScalePct: 5, elevationOffsetMils: 0 });
+    expect(tuned.elevationMils).toBe(std.elevationMils);
+  });
+  it('elevation offset shifts the result and limits scale with the range', () => {
+    const std = calculateFiringSolution(m252Weapon, g, at(1500), -1);
+    const off = calculateFiringSolution(m252Weapon, g, at(1500), -1, undefined, { rangeScalePct: 0, elevationOffsetMils: 10 });
+    expect(off.elevationMils).toBe((std.elevationMils as number) + 10);
+    const edge = calculateFiringSolution(m252Weapon, g, at(3000), -1, undefined, { rangeScalePct: 5, elevationOffsetMils: 0 });
+    expect(edge.inRange).toBe(true); // 2900 m * 1.05 = 3045 m
+  });
+});
+
+describe('tables close at the tube minimum and stay smooth near max range', () => {
+  ['m252_81mm', '2b14_82mm'].forEach((id) => {
+    it(`${id}: every ammo ends exactly at the minimum elevation with no big jumps`, () => {
+      const w = WEAPONS.find((x) => x.id === id)!;
+      w.ammunition!.forEach((a) => {
+        const t = a.charges[0].table;
+        expect(t[t.length - 1].elevation).toBe(w.minElevation); // US 800 (45.0 deg), RU 748 (44.9 deg)
+        for (let i = 1; i < t.length; i++) {
+          expect(t[i].elevation).toBeLessThanOrEqual(t[i - 1].elevation);
+          expect(t[i - 1].elevation - t[i].elevation).toBeLessThanOrEqual(20);
+        }
+      });
+    });
+  });
+});

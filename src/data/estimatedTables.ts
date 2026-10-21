@@ -58,16 +58,37 @@ export function buildEstimatedRing(inp: RingModelInput): RingModelOutput {
     return 90 - (0.5 * Math.asin(s)) / DEG;
   };
 
-  const step = 50; // one row every 50 m
+  const step = 50; // one row every 50 m ...
   const ranges: number[] = [minRange];
   for (let r = (Math.floor(minRange / step) + 1) * step; r < rMax; r += step) ranges.push(r);
   ranges.push(rMax);
+
+  // ... plus extra rows wherever the curve is steep (close to 45 deg, where a few metres change the
+  // elevation by tens of mils). Without them, linear interpolation between two 50 m rows near the
+  // maximum range is off by 20+ mils and the elevation seems to "jump" to the limit.
+  const elevMil = (r: number): number => (elevDeg(r) * milsPerCircle) / 360;
+  const MAX_ROW_GAP_MILS = 8;
+  for (let guard = 0; guard < 400; guard++) {
+    let inserted = false;
+    for (let i = 0; i < ranges.length - 1; i++) {
+      const a = ranges[i];
+      const b = ranges[i + 1];
+      if (b - a >= 2 && Math.abs(elevMil(a) - elevMil(b)) > MAX_ROW_GAP_MILS) {
+        ranges.splice(i + 1, 0, Math.round((a + b) / 2));
+        inserted = true;
+        i++;
+      }
+    }
+    if (!inserted) break;
+  }
 
   const table: BallisticDataPoint[] = ranges.map((r) => {
     const thDeg = elevDeg(r);
     const th = thDeg * DEG;
     let elevation = Math.round((thDeg * milsPerCircle) / 360);
     elevation = Math.min(maxElevMils, Math.max(minElevMils, elevation));
+    // Max range is reached at the tube's lowest elevation (US 800 mil = 45.0 deg, RU 748 mil = 44.9 deg)
+    if (r === rMax) elevation = minElevMils;
 
     // Vacuum model with v^2 = rMax * g
     const tof = 2 * Math.sqrt(rMax / G) * Math.sin(th);

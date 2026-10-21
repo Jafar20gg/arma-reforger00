@@ -4,6 +4,7 @@ export type MapLayerType = 'topo' | 'sat' | 'drawn';
 
 export interface TerrainPOI {
   name: string;
+  nameAr?: string; // Arabic spelling of the (English/French) name, shown when the map language is Arabic
   x: number; // game meters easting [0..worldSize]
   z: number; // game meters northing [0..worldSize]
   kind: 'capital' | 'town' | 'village' | 'landmark' | 'military' | 'hill' | 'bay';
@@ -209,6 +210,7 @@ export interface MapOverlaySettings {
   showDistanceCircles: boolean; // concentric horizontal-distance circles around the gun
   showCompass: boolean; // compass rose on the map
   distanceCircleStep: number; // meters between circles, 0 = automatic
+  mapLabelLanguage: 'auto' | 'en' | 'ar' | 'both'; // place names: follow UI language / English / Arabic spelling / both
   labelSize: 'sm' | 'md' | 'lg';
   labelColor: string;
 }
@@ -281,6 +283,13 @@ export interface AppCustomizationSettings {
   visibility: InterfaceVisibilitySettings;
 }
 
+/** Per-weapon personal calibration. Defaults (0, 0) = standard game data. */
+export interface WeaponTuning {
+  rangeScalePct: number; // -20..+20: table ranges are stretched (+) or shrunk (-) by this percent
+  elevationOffsetMils: number; // -60..+60 mils added to the final elevation
+}
+export type WeaponTunings = Record<string, WeaponTuning>;
+
 export interface AppExportData {
   schemaVersion: 1;
   exportedAt: string;
@@ -290,4 +299,5 @@ export interface AppExportData {
   weatherSettings: WeatherSettings;
   customMarkers: CustomMapMarker[];
   customMortars: CustomMortarConfig[];
+  weaponTunings?: WeaponTunings;
 }

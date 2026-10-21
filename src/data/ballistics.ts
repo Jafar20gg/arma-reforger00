@@ -6787,7 +6787,8 @@ export function calculateFiringSolution(
   gunPos: { x: number; z: number; alt: number },
   targetPos: { x: number; z: number; alt: number },
   preferredCharge?: number,
-  ammoId?: string
+  ammoId?: string,
+  tuning?: { rangeScalePct: number; elevationOffsetMils: number }
 ): BallisticSolution {
   return solveMortarFireMission({
     weapon,
@@ -6795,6 +6796,7 @@ export function calculateFiringSolution(
     targetPos,
     preferredCharge,
     ammoId,
+    tuning,
   });
 }
 

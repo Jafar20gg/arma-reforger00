@@ -27,6 +27,8 @@ export interface CalculateSolutionOptions {
   preferredCharge?: number; // -1 for auto
   ammoId?: string;
   ammoType?: string;
+  /** Personal calibration: stretches/shrinks table ranges (%) and shifts final elevation (mils). */
+  tuning?: { rangeScalePct: number; elevationOffsetMils: number };
 }
 
 /** Linear interpolation of an optional column: null if either end is missing. */
@@ -180,6 +182,7 @@ export function solveMortarFireMission({
   preferredCharge,
   ammoId,
   ammoType,
+  tuning,
 }: CalculateSolutionOptions): BallisticSolution {
   // Resolve active ammo from weapon.ammunition if configured
   let activeAmmo: AmmoConfig | undefined = undefined;
@@ -198,7 +201,19 @@ export function solveMortarFireMission({
     }
   }
 
-  const activeCharges = activeAmmo ? activeAmmo.charges : weapon.charges;
+  const baseCharges = activeAmmo ? activeAmmo.charges : weapon.charges;
+  // Personal calibration: ranges in the tables are scaled, so every limit, warning and lookup stays consistent.
+  const rangeK = 1 + (tuning?.rangeScalePct ?? 0) / 100;
+  const elevOffset = tuning?.elevationOffsetMils ?? 0;
+  const activeCharges =
+    rangeK === 1
+      ? baseCharges
+      : baseCharges.map((c) => ({
+          ...c,
+          minRange: Math.round(c.minRange * rangeK),
+          maxRange: Math.round(c.maxRange * rangeK),
+          table: c.table.map((p) => ({ ...p, range: p.range * rangeK })),
+        }));
 
   // Euclidean planar distance (1 meter per coordinate unit)
   const dx = targetPos.x - gunPos.x;
@@ -319,6 +334,8 @@ export function solveMortarFireMission({
         correctedElev = interp.elevation + calculateAltitudeCorrection(deltaAlt, interp.dElevPer100m);
       }
     }
+
+    if (correctedElev !== null) correctedElev += elevOffset;
 
     if (correctedElev !== null) {
       // Physical tube limits: an unreachable elevation is not shown as a solution.

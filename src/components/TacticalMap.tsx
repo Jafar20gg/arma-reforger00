@@ -488,8 +488,13 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
       if (!bounds.contains(latlng)) return;
 
       const pt = map.latLngToContainerPoint(latlng);
-      const estWidth = poi.name.length * (fontSize * 0.65) + 24;
-      const estHeight = fontSize + 16;
+      const mode = overlays.mapLabelLanguage === 'auto' || !overlays.mapLabelLanguage ? (isAr ? 'ar' : 'en') : overlays.mapLabelLanguage;
+      const arName = poi.nameAr || poi.name;
+      const lines = mode === 'ar' ? [arName] : mode === 'both' && poi.nameAr ? [arName, poi.name] : [poi.name];
+      const labelHtml = lines.join('<br/>');
+      const spacing = mode === 'ar' ? '0' : '0.05em'; // letter-spacing would break Arabic letter joining
+      const estWidth = Math.max(...lines.map((l) => l.length)) * (fontSize * 0.65) + 24;
+      const estHeight = fontSize * lines.length + 16;
       const box = {
         x1: pt.x - estWidth / 2 - 4,
         y1: pt.y - estHeight / 2 - 4,
@@ -526,8 +531,8 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
         html: `
           <div style="display: flex; flex-direction: column; align-items: center; pointer-events: none; user-select: none;">
             <span style="color: ${color}; font-size: ${fontSize + 2}px; line-height: 1;">${symbol}</span>
-            <span style="color: ${color}; font-size: ${fontSize}px; font-weight: 700; white-space: nowrap; text-shadow: 0 0 3px #000, 1px 1px 2px #000; letter-spacing: 0.05em;">
-              ${poi.name}
+            <span style="color: ${color}; font-size: ${fontSize}px; font-weight: 700; white-space: nowrap; text-shadow: 0 0 3px #000, 1px 1px 2px #000; letter-spacing: ${spacing}; text-align: center;">
+              ${labelHtml}
             </span>
           </div>
         `,
@@ -538,7 +543,7 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
       const marker = L.marker([poi.z, poi.x], { icon: poiIcon, interactive: false });
       poiGroup.addLayer(marker);
     });
-  }, [terrain.pois, overlays]);
+  }, [terrain.pois, overlays, isAr]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;

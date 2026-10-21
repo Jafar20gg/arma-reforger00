@@ -11,6 +11,8 @@ import {
   WeatherSettings,
   CustomMapMarker,
   CustomMortarConfig,
+  WeaponTuning,
+  WeaponTunings,
   AppExportData
 } from './types';
 import { StorageService } from './services/storageService';
@@ -32,6 +34,7 @@ export default function App() {
   const [weather, setWeather] = useState<WeatherSettings>(() => StorageService.loadWeather());
   const [customMarkers, setCustomMarkers] = useState<CustomMapMarker[]>(() => StorageService.loadMarkers());
   const [customMortars, setCustomMortars] = useState<CustomMortarConfig[]>(() => StorageService.loadCustomMortars());
+  const [tunings, setTunings] = useState<WeaponTunings>(() => StorageService.loadTunings());
 
   // 2. Modals & Menu State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -172,6 +175,17 @@ export default function App() {
     });
   }, []);
 
+  // Personal weapon calibration (null = back to standard game data)
+  const handleUpdateTuning = useCallback((weaponId: string, tuning: WeaponTuning | null) => {
+    setTunings((prev) => {
+      const next = { ...prev };
+      if (!tuning || (tuning.rangeScalePct === 0 && tuning.elevationOffsetMils === 0)) delete next[weaponId];
+      else next[weaponId] = tuning;
+      StorageService.saveTunings(next);
+      return next;
+    });
+  }, []);
+
   // Import Backup operation
   const handleImportBackup = useCallback((backup: AppExportData) => {
     if (backup.settings) {
@@ -189,6 +203,10 @@ export default function App() {
     if (backup.customMarkers) {
       setCustomMarkers(backup.customMarkers);
       StorageService.saveMarkers(backup.customMarkers);
+    }
+    if (backup.weaponTunings) {
+      setTunings(backup.weaponTunings);
+      StorageService.saveTunings(backup.weaponTunings);
     }
     if (backup.customMortars) {
       setCustomMortars(backup.customMortars);
@@ -210,6 +228,7 @@ export default function App() {
       setSettings(StorageService.resetAllSettings());
       setOverlays(StorageService.resetMapDisplay());
       setWeather(StorageService.loadWeather());
+      setTunings({});
     } else if (section === 'userData') {
       const { markers, mortars } = StorageService.clearUserData();
       setCustomMarkers(markers);
@@ -223,6 +242,7 @@ export default function App() {
       setWeather(StorageService.loadWeather());
       setCustomMarkers([]);
       setCustomMortars([]);
+      setTunings({});
     }
   }, []);
 
@@ -289,14 +309,15 @@ export default function App() {
 
   // Ballistic solution calculation
   const solution = useMemo(() => {
-    return calculateFiringSolution(selectedWeapon, gunPos, targetPos, selectedCharge, selectedAmmoId);
-  }, [selectedWeapon, gunPos, targetPos, selectedCharge, selectedAmmoId]);
+    return calculateFiringSolution(selectedWeapon, gunPos, targetPos, selectedCharge, selectedAmmoId, tunings[selectedWeapon.id]);
+  }, [selectedWeapon, gunPos, targetPos, selectedCharge, selectedAmmoId, tunings]);
 
   const activeAmmo = selectedWeapon.ammunition?.find((a) => a.id === selectedAmmoId) || selectedWeapon.ammunition?.[0];
   const activeCharges = activeAmmo ? activeAmmo.charges : selectedWeapon.charges;
   const currentChargeObj = activeCharges.find((c) => c.charge === solution.charge) || activeCharges[0];
-  const chargeMinRange = currentChargeObj?.minRange || 0;
-  const chargeMaxRange = currentChargeObj?.maxRange || 0;
+  const rangeK = 1 + (tunings[selectedWeapon.id]?.rangeScalePct ?? 0) / 100;
+  const chargeMinRange = Math.round((currentChargeObj?.minRange || 0) * rangeK);
+  const chargeMaxRange = Math.round((currentChargeObj?.maxRange || 0) * rangeK);
 
   const handleRetry = useCallback(() => {
     setReloadTrigger((v) => v + 1);
@@ -484,6 +505,7 @@ export default function App() {
               onSelectWeapon={handleSelectWeapon}
               selectedAmmoId={selectedAmmoId}
               onSelectAmmo={setSelectedAmmoId}
+              tuning={tunings[selectedWeapon.id]}
               selectedCharge={selectedCharge}
               onSelectCharge={setSelectedCharge}
               gunPos={gunPos}
@@ -511,6 +533,9 @@ export default function App() {
         onAddMarker={handleAddMarker}
         onDeleteMarker={handleDeleteMarker}
         customMortars={customMortars}
+        tunableWeapons={allWeapons}
+        tunings={tunings}
+        onUpdateTuning={handleUpdateTuning}
         onAddMortar={handleAddMortar}
         onDeleteMortar={handleDeleteMortar}
         onImportBackup={handleImportBackup}

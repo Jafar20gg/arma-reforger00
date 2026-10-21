@@ -148,3 +148,13 @@ npm run preview
 - **Compass rose** (map is always north-up: game +Z = North, +X = East) and a label on the gun→target line with distance, true-north bearing in degrees and the 8-point direction (N, NE, E…).
 - **Elevation scale** in the FCS panel, in degrees, with 45/50/60/70/80° ticks and the weapon's real limits (6400-mil circle US, 6000-mil RU). Separate from distance.
 - `compass.test.ts` checks that 1000 m spans the same pixels east and north on Everon, Arland and Kolguyev at several zoom levels.
+
+### v2.3
+- **Personal calibration per mortar** (Settings → Mortar): range % (−20…+20) and elevation offset (−60…+60 mil). Default 0 = standard data. Raise range % if shells land farther than the table, lower it if they land short. Saved only in the browser, included in backup export/import, and a banner shows in the FCS panel while it is active.
+- **Phone settings:** full-screen sheet, 44 px tap targets, 16 px inputs (no iOS zoom), single column, safe-area padding. Fixed a crash risk: the modal returned early before its hooks.
+- **Map place names in Arabic** (Everon): English/French pronunciation written in Arabic letters. Setting: Auto / English / Arabic / Both.
+- The 50 m is only the spacing of firing-table rows; the elevation between rows is interpolated per metre.
+
+### v2.4
+- Firing tables now end exactly at the tube minimum on the max-range row: **M252 = 800 mil (45.0°)**, **2B14 = 748 mil (44.9°)**.
+- Extra rows are inserted near the maximum range (where elevation changes fastest). Before, the 50 m rows made the elevation jump from about 50° straight to 45° in the last 50 m, and interpolation there was off by 20+ mils (e.g. 2875 m now gives 867 mil instead of ~847).

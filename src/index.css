@@ -191,3 +191,18 @@ html[lang="ar"] button, html[lang="ar"] input, html[lang="ar"] select, html[lang
   font-size: 10px;
 }
 .grid-axis-label { background: transparent !important; border: none !important; }
+
+/* ---- Phone-friendly settings ---- */
+@media (max-width: 639px) {
+  .settings-header { padding-top: calc(0.75rem + env(safe-area-inset-top, 0px)); }
+  .settings-body { padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px)); }
+  /* 16px inputs stop iOS from zooming the page; 44px targets are easy to tap */
+  .settings-modal select,
+  .settings-modal input[type="number"],
+  .settings-modal input[type="text"] { font-size: 16px !important; min-height: 44px; }
+  .settings-modal input[type="checkbox"] { width: 24px !important; height: 24px !important; flex-shrink: 0; }
+  .settings-modal label { min-height: 44px; gap: 0.75rem; }
+  .settings-modal button { min-height: 40px; }
+  .settings-close { min-width: 44px; min-height: 44px; }
+  .settings-modal .grid { grid-template-columns: 1fr !important; }
+}
