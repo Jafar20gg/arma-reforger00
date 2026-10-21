@@ -298,6 +298,7 @@ export type WeaponTunings = Record<string, WeaponTuning>;
 /** Distance method + optional AI second opinion. Stored separately, never exported (contains the user's own API key). */
 export interface AiSettings {
   method: 'math' | 'ai'; // 'math' = exact maths only (default); 'ai' = maths + AI cross-check
+  provider: 'gemini' | 'anthropic'; // which company's API your own key belongs to
   apiKey: string;
   model: string;
 }

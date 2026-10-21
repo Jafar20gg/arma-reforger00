@@ -173,3 +173,4 @@ Root cause: with a height difference (the defaults are gun 65 m / target 72 m) t
 ### v2.8
 - **Full free mode** per mortar (Settings → Mortar): tube elevation limits and the angle lock are ignored, so you can use any closing angle (e.g. 40° or 45°) and control everything yourself.
 - **Distance method:** exact maths from the coordinates (default, no map/zoom involved) or maths + optional AI second opinion. The AI never replaces the numbers: it re-computes distance/azimuth, flags differences (> 1 m or > 2 mil) and lists practical notes. It needs your own API key (kept only in this browser, not exported); only gun/target coordinates and weapon type are sent when you press "Check now".
+- v2.9: the AI check supports **Google Gemini** (default model `gemini-3.5-flash`, header `x-goog-api-key`) as well as Anthropic Claude. Pick the provider in Settings and paste your own key there (never in chat or in the code); the model name stays editable.

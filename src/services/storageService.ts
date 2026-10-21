@@ -259,14 +259,17 @@ export function sanitizeMortars(raw: unknown): CustomMortarConfig[] {
 
 export const DEFAULT_TUNING: WeaponTuning = { rangeScalePct: 0, elevationOffsetMils: 0, minElevationLockDeg: 0, closingAngleDeg: 0 };
 
-export const DEFAULT_AI: AiSettings = { method: 'math', apiKey: '', model: 'claude-sonnet-5-5' };
+export const AI_DEFAULT_MODEL = { gemini: 'gemini-3.5-flash', anthropic: 'claude-sonnet-5-5' } as const;
+export const DEFAULT_AI: AiSettings = { method: 'math', provider: 'gemini', apiKey: '', model: AI_DEFAULT_MODEL.gemini };
 
 export function sanitizeAi(raw: unknown): AiSettings {
   const r = isObj(raw) ? raw : {};
+  const provider = r.provider === 'anthropic' ? 'anthropic' : 'gemini';
   return {
     method: r.method === 'ai' ? 'ai' : 'math',
+    provider,
     apiKey: str(r.apiKey, '', 300).trim(),
-    model: str(r.model, DEFAULT_AI.model, 80).trim() || DEFAULT_AI.model,
+    model: str(r.model, AI_DEFAULT_MODEL[provider], 80).trim() || AI_DEFAULT_MODEL[provider],
   };
 }
 

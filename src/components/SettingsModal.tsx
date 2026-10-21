@@ -1126,6 +1126,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   {aiSettings.method === 'ai' && (
                     <div className="space-y-2 p-2 rounded bg-slate-950 border border-slate-800">
+                      <div className="grid grid-cols-2 gap-2">
+                        {(['gemini', 'anthropic'] as const).map((pv) => (
+                          <button
+                            key={pv}
+                            type="button"
+                            onClick={() => onUpdateAi({ provider: pv, model: pv === 'gemini' ? 'gemini-3.5-flash' : 'claude-sonnet-5-5' })}
+                            className={`p-2 rounded border font-bold ${aiSettings.provider === pv ? 'bg-violet-600 border-violet-400 text-white' : 'bg-slate-900 border-slate-700 text-slate-300'}`}
+                          >
+                            {pv === 'gemini' ? 'Google Gemini' : 'Anthropic Claude'}
+                          </button>
+                        ))}
+                      </div>
                       <label className="block text-[11px] text-slate-400">
                         {isAr ? 'مفتاح API الخاص بك (يُحفظ بمتصفحك فقط، ولا يدخل النسخة الاحتياطية)' : 'Your own API key (kept in this browser only, never in backups)'}
                         <input
@@ -1133,7 +1145,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           autoComplete="off"
                           value={aiSettings.apiKey}
                           onChange={(e) => onUpdateAi({ apiKey: e.target.value })}
-                          placeholder="sk-ant-..."
+                          placeholder={aiSettings.provider === 'gemini' ? 'AQ.… / AIza…' : 'sk-ant-…'}
                           className="mt-1 w-full h-10 px-2 bg-slate-900 border border-slate-700 rounded text-slate-100"
                           dir="ltr"
                         />
@@ -1150,8 +1162,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </label>
                       <p className="text-[10px] text-amber-400">
                         {isAr
-                          ? 'عند الضغط على "تحقق الآن" يُرسل فقط: إحداثيات الهاون والهدف ونوع السلاح إلى Anthropic. لا يُرسل شي ثاني.'
-                          : 'When you press "Check now", only the gun/target coordinates and weapon type are sent to Anthropic. Nothing else.'}
+                          ? 'عند الضغط على "تحقق الآن" يُرسل فقط: إحداثيات الهاون والهدف ونوع السلاح إلى الشركة المختارة (Google أو Anthropic). لا يُرسل شي ثاني.'
+                          : 'When you press "Check now", only the gun/target coordinates and weapon type are sent to the selected company (Google or Anthropic). Nothing else.'}
                       </p>
                     </div>
                   )}

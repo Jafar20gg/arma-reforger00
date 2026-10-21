@@ -49,44 +49,68 @@ export function parseAdvisorJson(text: string): AdvisorResult | null {
   }
 }
 
+function userPayload(input: AdvisorInput): string {
+  return JSON.stringify({
+    weapon: input.weaponName,
+    mil_circle: input.milsPerCircle,
+    gun: input.gun,
+    target: input.target,
+    ring: input.ring,
+    ring_range_m: [input.minRange, input.maxRange],
+    app_result: { in_range: input.inRange, elevation_mils: input.elevationMils },
+  });
+}
+
 export async function askAdvisor(ai: AiSettings, input: AdvisorInput): Promise<AdvisorResult> {
   if (!ai.apiKey.trim()) throw new Error('NO_KEY');
   const ctrl = new AbortController();
   const timer = window.setTimeout(() => ctrl.abort(), 25000);
+  const system = SYSTEM + (input.lang === 'ar' ? ' Write the notes in Arabic.' : ' Write the notes in English.');
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      signal: ctrl.signal,
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': ai.apiKey.trim(),
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: ai.model || 'claude-sonnet-5-5',
-        max_tokens: 700,
-        system: SYSTEM + (input.lang === 'ar' ? ' Write the notes in Arabic.' : ' Write the notes in English.'),
-        messages: [
-          {
-            role: 'user',
-            content: JSON.stringify({
-              weapon: input.weaponName,
-              mil_circle: input.milsPerCircle,
-              gun: input.gun,
-              target: input.target,
-              ring: input.ring,
-              ring_range_m: [input.minRange, input.maxRange],
-              app_result: { in_range: input.inRange, elevation_mils: input.elevationMils },
-            }),
-          },
-        ],
-      }),
-    });
+    let res: Response;
+    if (ai.provider === 'anthropic') {
+      res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        signal: ctrl.signal,
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': ai.apiKey.trim(),
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: ai.model || 'claude-sonnet-5-5',
+          max_tokens: 700,
+          system,
+          messages: [{ role: 'user', content: userPayload(input) }],
+        }),
+      });
+    } else {
+      res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(ai.model || 'gemini-3.5-flash')}:generateContent`,
+        {
+          method: 'POST',
+          signal: ctrl.signal,
+          headers: { 'content-type': 'application/json', 'x-goog-api-key': ai.apiKey.trim() },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: system }] },
+            contents: [{ role: 'user', parts: [{ text: userPayload(input) }] }],
+            generationConfig: { temperature: 0, maxOutputTokens: 800, responseMimeType: 'application/json' },
+          }),
+        }
+      );
+    }
     if (res.status === 401 || res.status === 403) throw new Error('BAD_KEY');
-    if (!res.ok) throw new Error(`HTTP_${res.status}`);
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      if (res.status === 400 && /API_KEY_INVALID|API key not valid/i.test(body)) throw new Error('BAD_KEY');
+      throw new Error(`HTTP_${res.status}`);
+    }
     const data = await res.json();
-    const text = (data.content || []).map((c: { text?: string }) => c.text || '').join('');
+    const text =
+      ai.provider === 'anthropic'
+        ? (data.content || []).map((c: { text?: string }) => c.text || '').join('')
+        : (data.candidates?.[0]?.content?.parts || []).map((p: { text?: string }) => p.text || '').join('');
     const parsed = parseAdvisorJson(text);
     if (!parsed) throw new Error('BAD_REPLY');
     return parsed;
