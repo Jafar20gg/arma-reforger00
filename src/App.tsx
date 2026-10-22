@@ -39,6 +39,8 @@ import { MortarInformationSystem } from './components/MortarInformationSystem';
 import { OfflineMapDownloaderModal } from './components/OfflineMapDownloaderModal';
 import { GitHubAutomationModal } from './components/GitHubAutomationModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { BottomNavigationBar } from './components/BottomNavigationBar';
+import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { getCacheStats } from './services/offlineMapStorage';
 
 export default function App() {
@@ -96,6 +98,7 @@ export default function App() {
   const [cachedTilesCount, setCachedTilesCount] = useState<number>(0);
   const [fitMissionTrigger, setFitMissionTrigger] = useState<number>(0);
   const [isRulerActive, setIsRulerActive] = useState<boolean>(false);
+  const { isOnline } = useOnlineStatus();
 
   // Keep offline cached tiles count updated
   const refreshCacheCount = useCallback(async () => {
@@ -540,48 +543,23 @@ export default function App() {
         />
       )}
 
-      {/* Mobile Mode Switcher Bar (< lg, Controlled by settings.visibility.showMobileTabs) */}
+      {/* Tactical Mobile Bottom Navigation Bar (App Experience) */}
       {settings.visibility.showMobileTabs && (
-        <div className="lg:hidden flex items-center justify-between bg-slate-900 border-b border-slate-800 px-3 py-1.5 shrink-0 z-20">
-          <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800">
-            <button
-              onClick={() => setMobileTab('map')}
-              className={`px-3 py-1 text-xs font-mono font-bold rounded transition-all ${
-                mobileTab === 'map'
-                  ? 'bg-sky-500 text-slate-950 shadow'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {isAr ? 'الخارطة التكتيكية' : 'Tactical Map'}
-            </button>
-            <button
-              onClick={() => setMobileTab('calc')}
-              className={`px-3 py-1 text-xs font-mono font-bold rounded transition-all ${
-                mobileTab === 'calc'
-                  ? 'bg-sky-500 text-slate-950 shadow'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {isAr ? 'الحاسبة والحل' : 'Calculator & Sol'}
-            </button>
-          </div>
-
-          {/* Quick Solution Pill for Mobile */}
-          {settings.visibility.showLiveSolutionPill && (
-            <div 
-              onClick={() => setMobileTab('calc')}
-              className="flex items-center gap-2 cursor-pointer font-mono text-[11px] bg-slate-950/80 px-2.5 py-1 rounded-md border border-slate-800 hover:border-sky-500"
-            >
-              <span className="text-sky-400 font-bold">AZ: {solution.azimuthMils}</span>
-              <span className="text-slate-600">|</span>
-              <span className="text-emerald-400 font-bold">
-                EL: {solution.elevationDeg !== null ? `${solution.elevationDeg.toFixed(1)}°` : '---'}
-              </span>
-              <span className="text-slate-600">|</span>
-              <span className="text-slate-300">Ring {solution.charge}</span>
-            </div>
-          )}
-        </div>
+        <BottomNavigationBar
+          activeTab={mobileTab}
+          onChangeTab={setMobileTab}
+          onOpenOfflineDownloader={() => setIsOfflineDownloaderOpen(true)}
+          onOpenAndroidHub={() => setIsGitHubModalOpen(true)}
+          onOpenMissionLog={() => setIsMissionLogOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onToggleWeather={() => handleUpdateSettings({ weatherPanelOpen: !settings.weatherPanelOpen })}
+          isWeatherOpen={settings.weatherPanelOpen}
+          cachedTilesCount={cachedTilesCount}
+          solution={solution}
+          selectedWeapon={selectedWeapon}
+          lang={settings.language}
+          isOnline={isOnline}
+        />
       )}
 
       {/* Floating Accessible Three-Dot Settings & Visibility Menu Button */}
@@ -624,7 +602,7 @@ export default function App() {
       )}
 
       {/* Main Workspace Layout (Map-Only Primary Interface with Collapsible Sidebar) */}
-      <div className={`flex-1 flex min-h-0 overflow-hidden relative ${
+      <div className={`flex-1 flex min-h-0 overflow-hidden relative pb-16 lg:pb-0 ${
         settings.panelPosition === 'left' ? 'flex-col lg:flex-row-reverse' : 'flex-col lg:flex-row'
       }`}>
         {/* Tactical Map (Primary view - expands to 100% when FCS is closed) */}
