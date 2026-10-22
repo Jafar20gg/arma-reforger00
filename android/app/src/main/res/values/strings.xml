@@ -1,6 +1,0 @@
-<resources>
-    <string name="app_name">Arma Reforger FCS</string>
-    <string name="title_activity_main">Arma Reforger FCS</string>
-    <string name="package_name">com.armareforger.tacticalfcs</string>
-    <string name="custom_url_scheme">com.armareforger.tacticalfcs</string>
-</resources>
