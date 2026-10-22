@@ -1,0 +1,8 @@
+{
+  "appId": "app.armafcs.fcs",
+  "appName": "AR FCS",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
