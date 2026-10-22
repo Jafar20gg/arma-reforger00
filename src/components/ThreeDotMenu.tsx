@@ -30,7 +30,9 @@ import {
   Shield,
   Compass,
   History,
-  Info
+  Info,
+  Download,
+  Smartphone
 } from 'lucide-react';
 
 interface ThreeDotMenuProps {
@@ -61,6 +63,9 @@ interface ThreeDotMenuProps {
   onUpdateOverlays?: (patch: Partial<MapOverlaySettings>) => void;
   storageAllowed?: boolean;
   onSetStorage?: (allow: boolean) => void;
+  onOpenOfflineDownloader?: () => void;
+  onOpenGitHubModal?: () => void;
+  cachedTilesCount?: number;
   lang: 'en' | 'ar';
 }
 
@@ -122,6 +127,9 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   onUpdateOverlays,
   storageAllowed,
   onSetStorage,
+  onOpenOfflineDownloader,
+  onOpenGitHubModal,
+  cachedTilesCount = 0,
   lang,
 }) => {
   const t = TRANSLATIONS[lang];
@@ -399,6 +407,44 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
                       <span className="truncate">{isAr ? 'سجل المهام' : 'Mission Log'}</span>
                       <span className="ms-auto text-[10px] px-1.5 rounded font-bold bg-slate-900 text-amber-300">
                         {missionsCount}
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Offline Tactical Map Downloader */}
+                  {onOpenOfflineDownloader && (
+                    <button
+                      onClick={() => {
+                        onClose();
+                        onOpenOfflineDownloader();
+                      }}
+                      className="col-span-2 p-2 rounded-lg border border-sky-500/50 bg-sky-950/40 hover:bg-sky-900/50 text-sky-200 hover:text-white flex items-center justify-between font-bold text-xs transition-all shadow-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Download className="w-4 h-4 text-sky-400" />
+                        <span>{isAr ? 'محمّل الخرائط التكتيكية أوفلاين' : 'Offline Tactical Map Downloader'}</span>
+                      </div>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-900 border border-sky-700 text-sky-300 font-mono">
+                        {cachedTilesCount > 0 ? `${cachedTilesCount} tiles` : 'READY'}
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Android APK & GitHub Automation Hub */}
+                  {onOpenGitHubModal && (
+                    <button
+                      onClick={() => {
+                        onClose();
+                        onOpenGitHubModal();
+                      }}
+                      className="col-span-2 p-2 rounded-lg border border-purple-500/50 bg-purple-950/30 hover:bg-purple-900/40 text-purple-200 hover:text-white flex items-center justify-between font-bold text-xs transition-all shadow-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Smartphone className="w-4 h-4 text-purple-400" />
+                        <span>{isAr ? 'حزم أندرويد (Capacitor APK) ومستودع GitHub' : 'Android App (APK) & GitHub CI/CD'}</span>
+                      </div>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-900 border border-purple-700 text-purple-300 font-mono">
+                        Capacitor 6
                       </span>
                     </button>
                   )}

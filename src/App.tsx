@@ -36,6 +36,10 @@ import { WeatherWidget } from './components/WeatherWidget';
 import { ThreeDotMenu } from './components/ThreeDotMenu';
 import { MissionLogModal } from './components/MissionLogModal';
 import { MortarInformationSystem } from './components/MortarInformationSystem';
+import { OfflineMapDownloaderModal } from './components/OfflineMapDownloaderModal';
+import { GitHubAutomationModal } from './components/GitHubAutomationModal';
+import { OfflineIndicator } from './components/OfflineIndicator';
+import { getCacheStats } from './services/offlineMapStorage';
 
 export default function App() {
   // 1. Persistent Storage State (Browser LocalStorage)
@@ -87,8 +91,23 @@ export default function App() {
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isMortarInfoOpen, setIsMortarInfoOpen] = useState(false);
+  const [isOfflineDownloaderOpen, setIsOfflineDownloaderOpen] = useState(false);
+  const [isGitHubModalOpen, setIsGitHubModalOpen] = useState(false);
+  const [cachedTilesCount, setCachedTilesCount] = useState<number>(0);
   const [fitMissionTrigger, setFitMissionTrigger] = useState<number>(0);
   const [isRulerActive, setIsRulerActive] = useState<boolean>(false);
+
+  // Keep offline cached tiles count updated
+  const refreshCacheCount = useCallback(async () => {
+    try {
+      const cacheStats = await getCacheStats();
+      setCachedTilesCount(cacheStats.totalTiles);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    refreshCacheCount();
+  }, [refreshCacheCount, isOfflineDownloaderOpen]);
 
   // 3. Operational Map & Weapon State
   const [activeTerrainId, setActiveTerrainId] = useState<TerrainId>('everon');
@@ -515,6 +534,9 @@ export default function App() {
           selectedWeapon={selectedWeapon}
           lang={settings.language}
           visibility={settings.visibility}
+          onOpenOfflineDownloader={() => setIsOfflineDownloaderOpen(true)}
+          onOpenGitHubModal={() => setIsGitHubModalOpen(true)}
+          cachedTilesCount={cachedTilesCount}
         />
       )}
 
@@ -591,6 +613,9 @@ export default function App() {
         onUpdateOverlays={handleUpdateOverlays}
         storageAllowed={storageConsent === 'granted'}
         onSetStorage={handleSetStorage}
+        onOpenOfflineDownloader={() => setIsOfflineDownloaderOpen(true)}
+        onOpenGitHubModal={() => setIsGitHubModalOpen(true)}
+        cachedTilesCount={cachedTilesCount}
         lang={settings.language}
       />
 
@@ -766,6 +791,29 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Offline Tactical Map Downloader Modal */}
+      <OfflineMapDownloaderModal
+        isOpen={isOfflineDownloaderOpen}
+        onClose={() => {
+          setIsOfflineDownloaderOpen(false);
+          refreshCacheCount();
+        }}
+        activeTerrainId={activeTerrainId}
+        gunPos={gunPos}
+        targetPos={targetPos}
+        lang={settings.language}
+      />
+
+      {/* Android Capacitor & GitHub CI/CD Automation Hub */}
+      <GitHubAutomationModal
+        isOpen={isGitHubModalOpen}
+        onClose={() => setIsGitHubModalOpen(false)}
+        lang={settings.language}
+      />
+
+      {/* Offline Status Indicator Banner */}
+      <OfflineIndicator lang={settings.language} />
     </div>
   );
 }

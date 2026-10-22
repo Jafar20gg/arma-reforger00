@@ -190,3 +190,28 @@ Root cause: with a height difference (the defaults are gun 65 m / target 72 m) t
 - **Arland & Kolguyev place names**: Arland shows its 7 real locations (Airport Base, Military Training Base, Beauregard, Arleville, Farm, Moss Hill, Signal Hill — game-meter coordinates from EnfusionMapMaker, the same source as Everon). Kolguyev shows its 7 known settlements (Kamensk, Mineraly, Gorshkovo, Ugoldar, Crossroad, Villa, Zenit Mine — community-extracted, verify in game). Arabic names included.
 - **Offline PWA**: installable app with its own icons; a service worker caches the app shell and map tiles (LRU-capped), so after one online visit the FCS works in the field with no connection. AI-check calls are never cached.
 - **Cleanup**: removed unused packages (`express`, `dotenv`, `motion`, `tsx`, `@google/genai`); the three leaflet-based test suites now run under jsdom — **200 tests, 0 failing** (`npm test`).
+
+### v3.0 — Offline Tactical Map Downloader & Capacitor Android App (APK)
+
+#### 📦 Offline Tactical Map Downloader (PWA & IndexedDB Engine)
+- **Pre-Cache Tactical Presets**: 1-click download of essential theater maps (Arland Complete Z0-6 ~12MB, Everon Tactical Recon Z0-5 ~24MB, Kolguyev Bastion Z0-5 ~22MB).
+- **Active Combat Sector Bounding Box**: Calculates and caches only the exact tiles (Z0-7, ~4MB) covering the active battery (Gun) and Target area, saving massive bandwidth and storage.
+- **Dual-Layer Cache Architecture**: Pre-populates the Service Worker CacheStorage (`fcs-v2.20-tiles`) and secondary persistent IndexedDB (`ArmaReforger_OfflineMapStore_v1`).
+- **Live Download Dashboard**: Real-time progress bar, speed tracker (KB/s), remaining ETA counter, and pause/abort controller.
+- **Field Offline Simulator**: Test cached maps offline with a single click inside the app without disconnecting Wi-Fi.
+
+#### 🤖 Capacitor Native Android Architecture (@capacitor/core, @capacitor/android)
+The codebase now operates simultaneously as a Progressive Web App and a fully configured native Android APK.
+- **Capacitor Configuration**: Configured via `capacitor.config.ts` (`appId: "com.armareforger.tacticalfcs"`).
+- **Tactical Android Manifest**: Configured in `android/app/src/main/AndroidManifest.xml` with:
+  - `android.permission.WAKE_LOCK`: Keeps phone screen active during live combat fire missions.
+  - `android.permission.INTERNET` and `ACCESS_NETWORK_STATE`: Handles tile streaming and offline fallbacks.
+  - Full-screen orientation lock support and hardware acceleration.
+- **Automation Scripts & npm Commands**:
+  - `npm run build`: Compiles production web bundle.
+  - `npm run build:android` / `npx cap sync android`: Syncs web build into the native Android project.
+  - `./android-build.sh`: Automated bash build script.
+- **GitHub Actions CI/CD Cloud Builder (`.github/workflows/android-build.yml`)**:
+  - Automatically compiles `arma-reforger-fcs-debug-apk` and release APK on every push to `main` using Ubuntu, Node 20, JDK 17, and Android SDK.
+  - Attaches compiled APKs directly to GitHub Actions Artifacts and Releases for 1-click download without installing Android Studio.
+
