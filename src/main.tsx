@@ -31,3 +31,10 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </ErrorBoundary>
 );
+
+// Offline support (PWA): cache the app shell and map tiles for field use without a connection.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch((err) => console.warn('[FCS] SW registration failed:', err));
+  });
+}

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import L from 'leaflet';
 import { bearingDeg, cardinalName, pickCircleStep, circleRadii, circleWeight, pixelsPerMeter } from './compass';

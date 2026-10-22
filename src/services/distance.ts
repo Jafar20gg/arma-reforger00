@@ -59,3 +59,27 @@ export function measurePath(points: Array<{ x: number; z: number }>, milsPerCirc
     azimuthMils: overall.azimuthMils,
   };
 }
+
+/**
+ * Adjust-fire maths: move the target by an observer correction given in the firing-line frame.
+ * addDropM   : + adds range (target moves AWAY from the gun), - drops range (TOWARD the gun), in meters.
+ * deflectionMils : lateral correction in the weapon's mil circle; + = shift RIGHT of the gun→target line.
+ * The lateral offset in meters is range * tan(angle), exact for any angle.
+ */
+export function offsetTarget(
+  gun: { x: number; z: number },
+  target: { x: number; z: number; alt?: number },
+  addDropM: number,
+  deflectionMils: number,
+  milsPerCircle: number
+): { x: number; z: number; alt: number } {
+  const d = distanceBreakdown(gun, target, milsPerCircle);
+  const az = (d.azimuthDeg * Math.PI) / 180;
+  // Unit vectors in game meters: x = East, z = North
+  const fwd = { x: Math.sin(az), z: Math.cos(az) }; // toward the target
+  const right = { x: Math.sin(az + Math.PI / 2), z: Math.cos(az + Math.PI / 2) }; // 90° to the right
+  const lateralM = d.horizontal > 0 ? d.horizontal * Math.tan((deflectionMils / milsPerCircle) * 2 * Math.PI) : 0;
+  const x = target.x + fwd.x * addDropM + right.x * lateralM;
+  const z = target.z + fwd.z * addDropM + right.z * lateralM;
+  return { x: Math.round(x * 10) / 10, z: Math.round(z * 10) / 10, alt: target.alt ?? 0 };
+}

@@ -14,9 +14,13 @@ import {
   WeaponTuning,
   AiSettings,
   WeaponTunings,
-  AppExportData
+  AppExportData,
+  FireMissionRecord
 } from './types';
 import { applyTuningToCharges } from './services/ballisticsCalculator';
+import { offsetTarget } from './services/distance';
+import { encodeMissionLink, decodeMissionLink } from './services/missionLink';
+import { buildFireMissionCallout } from './services/callout';
 import { StorageService } from './services/storageService';
 import { useStorageConsent, grantStorage, denyStorage } from './services/storageConsent';
 import { flushWidgetLayout } from './services/widgetLayout';
@@ -30,6 +34,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { CustomMarkerModal } from './components/CustomMarkerModal';
 import { WeatherWidget } from './components/WeatherWidget';
 import { ThreeDotMenu } from './components/ThreeDotMenu';
+import { MissionLogModal } from './components/MissionLogModal';
 import { MortarInformationSystem } from './components/MortarInformationSystem';
 
 export default function App() {
@@ -48,6 +53,8 @@ export default function App() {
     });
   }, []);
   const [tunings, setTunings] = useState<WeaponTunings>(() => StorageService.loadTunings());
+  const [missions, setMissions] = useState<FireMissionRecord[]>(() => StorageService.loadMissions());
+  const [isMissionLogOpen, setIsMissionLogOpen] = useState(false);
 
   // Permission to save data in this browser (nothing is written until the user allows it)
   const storageConsent = useStorageConsent();
@@ -63,12 +70,13 @@ export default function App() {
         StorageService.saveCustomMortars(customMortars);
         StorageService.saveTunings(tunings);
         StorageService.saveAi(aiSettings);
+        StorageService.saveMissions(missions);
         flushWidgetLayout();
       } else {
         denyStorage();
       }
     },
-    [settings, overlays, weather, customMarkers, customMortars, tunings, aiSettings],
+    [settings, overlays, weather, customMarkers, customMortars, tunings, aiSettings, missions],
   );
 
   // 2. Modals & Menu State
@@ -247,6 +255,15 @@ export default function App() {
       setCustomMortars(backup.customMortars);
       StorageService.saveCustomMortars(backup.customMortars);
     }
+    if (backup.missions) {
+      setMissions(backup.missions);
+      StorageService.saveMissions(backup.missions);
+    }
+  }, []);
+
+  const saveMissions = useCallback((next: FireMissionRecord[]) => {
+    setMissions(next);
+    StorageService.saveMissions(next);
   }, []);
 
   // Granular Reset operations
@@ -265,9 +282,10 @@ export default function App() {
       setWeather(StorageService.loadWeather());
       setTunings({});
     } else if (section === 'userData') {
-      const { markers, mortars } = StorageService.clearUserData();
+      const { markers, mortars, missions: cleared } = StorageService.clearUserData();
       setCustomMarkers(markers);
       setCustomMortars(mortars);
+      setMissions(cleared);
     } else if (section === 'visibility') {
       setSettings((prev) => StorageService.resetVisibility(prev));
     } else if (section === 'factory') {
@@ -277,6 +295,7 @@ export default function App() {
       setWeather(StorageService.loadWeather());
       setCustomMarkers([]);
       setCustomMortars([]);
+      setMissions([]);
       setTunings({});
       setAiSettings(StorageService.loadAi());
     }
@@ -354,6 +373,101 @@ export default function App() {
   const currentChargeObj = tunedCharges.find((c) => c.charge === solution.charge) || tunedCharges[0];
   const chargeMinRange = currentChargeObj?.minRange || 0;
   const chargeMaxRange = currentChargeObj?.maxRange || 0;
+
+  // --- Fire mission log ---
+  const handleSaveMission = useCallback(() => {
+    if (!solution.inRange) return;
+    const ammo = selectedWeapon.ammunition?.find((a) => a.id === selectedAmmoId) || selectedWeapon.ammunition?.[0];
+    const ammoLabel = ammo ? `${ammo.name} (${ammo.weightKg}kg)` : solution.ammoType;
+    const rec: FireMissionRecord = {
+      id: `mission_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      createdAt: new Date().toISOString(),
+      terrainId: activeTerrainId,
+      weaponId: selectedWeapon.id,
+      weaponName: selectedWeapon.name,
+      ammoId: ammo?.id,
+      ammoLabel,
+      ring: solution.charge,
+      gun: { ...gunPos },
+      target: { ...targetPos },
+      azimuthMils: solution.azimuthMils,
+      elevationMils: solution.elevationMils,
+      rangeM: solution.horizontalDistance,
+      tofS: solution.timeOfFlight,
+      callout: buildFireMissionCallout({
+        terrainName: currentTerrain.name,
+        weapon: selectedWeapon,
+        ammoLabel,
+        solution,
+        gunPos,
+        targetPos,
+      }),
+    };
+    saveMissions([rec, ...missions].slice(0, 100));
+  }, [solution, selectedWeapon, selectedAmmoId, activeTerrainId, gunPos, targetPos, missions, currentTerrain, saveMissions]);
+
+  const handleDeleteMission = useCallback((id: string) => {
+    saveMissions(missions.filter((m) => m.id !== id));
+  }, [missions, saveMissions]);
+
+  const handleClearMissions = useCallback(() => {
+    saveMissions([]);
+  }, [saveMissions]);
+
+  // Re-engage: load a saved mission back into the map and calculator
+  const handleReengageMission = useCallback((m: FireMissionRecord) => {
+    setActiveTerrainId(m.terrainId);
+    const weapon = allWeapons.find((w) => w.id === m.weaponId);
+    if (weapon) setSelectedWeapon(weapon);
+    if (m.ammoId) setSelectedAmmoId(m.ammoId);
+    setSelectedCharge(m.ring);
+    setGunPos({ ...m.gun });
+    setTargetPos({ ...m.target });
+    setIsMissionLogOpen(false);
+    setFitMissionTrigger((v) => v + 1);
+  }, [allWeapons]);
+
+  // Adjust fire: observer correction in the firing-line frame moves the target, solution updates
+  const handleAdjustTarget = useCallback((addDropM: number, deflectionMils: number) => {
+    setTargetPos((prev) => {
+      const moved = offsetTarget(gunPos, prev, addDropM, deflectionMils, selectedWeapon.milsPerCircle);
+      const max = currentTerrain.worldSize;
+      return {
+        x: Math.min(max, Math.max(0, moved.x)),
+        z: Math.min(max, Math.max(0, moved.z)),
+        alt: prev.alt,
+      };
+    });
+  }, [gunPos, selectedWeapon, currentTerrain]);
+
+  // Share-by-link: copy a URL that restores terrain/weapon/gun/target for a squadmate
+  const handleCopyMissionLink = useCallback(() => {
+    const hash = encodeMissionLink({
+      terrainId: activeTerrainId,
+      weaponId: selectedWeapon.id,
+      ammoId: selectedAmmoId,
+      ring: selectedCharge,
+      gun: gunPos,
+      target: targetPos,
+    });
+    const url = `${window.location.origin}${window.location.pathname}${hash}`;
+    navigator.clipboard.writeText(url);
+    window.history.replaceState(null, '', hash);
+  }, [activeTerrainId, selectedWeapon, selectedAmmoId, selectedCharge, gunPos, targetPos]);
+
+  // Open-via-link: apply a shared mission from the URL hash once on startup
+  useEffect(() => {
+    const shared = decodeMissionLink(window.location.hash);
+    if (!shared) return;
+    setActiveTerrainId(shared.terrainId);
+    const weapon = allWeapons.find((w) => w.id === shared.weaponId);
+    if (weapon) setSelectedWeapon(weapon);
+    if (shared.ammoId) setSelectedAmmoId(shared.ammoId);
+    if (shared.ring >= 0) setSelectedCharge(shared.ring);
+    setGunPos(shared.gun);
+    setTargetPos(shared.target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleRetry = useCallback(() => {
     setReloadTrigger((v) => v + 1);
@@ -470,6 +584,8 @@ export default function App() {
         onOpenMortarInfo={() => setIsMortarInfoOpen(true)}
         onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
         onOpenHelp={() => setIsHelpOpen(true)}
+        onOpenMissionLog={() => setIsMissionLogOpen(true)}
+        missionsCount={missions.length}
         failedTiles={diagnostics.failedCount}
         overlays={overlays}
         onUpdateOverlays={handleUpdateOverlays}
@@ -556,10 +672,25 @@ export default function App() {
               onTargetChange={setTargetPos}
               solution={solution}
               lang={settings.language}
+              onAdjustTarget={handleAdjustTarget}
+              onSaveMission={handleSaveMission}
+              onCopyMissionLink={handleCopyMissionLink}
             />
           </div>
         )}
       </div>
+
+      {/* Fire Mission Log Modal */}
+      <MissionLogModal
+        isOpen={isMissionLogOpen}
+        onClose={() => setIsMissionLogOpen(false)}
+        missions={missions}
+        onReengage={handleReengageMission}
+        onDelete={handleDeleteMission}
+        onClearAll={handleClearMissions}
+        lang={settings.language}
+        terrainName={(id) => TERRAINS[id as TerrainId]?.name ?? id}
+      />
 
       {/* Comprehensive Settings Modal */}
       <SettingsModal

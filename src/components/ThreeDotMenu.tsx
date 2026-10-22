@@ -29,6 +29,7 @@ import {
   Sparkles,
   Shield,
   Compass,
+  History,
   Info
 } from 'lucide-react';
 
@@ -53,6 +54,8 @@ interface ThreeDotMenuProps {
   onOpenMortarInfo?: () => void;
   onOpenDiagnostics?: () => void;
   onOpenHelp?: () => void;
+  onOpenMissionLog?: () => void;
+  missionsCount?: number;
   failedTiles?: number;
   overlays?: MapOverlaySettings;
   onUpdateOverlays?: (patch: Partial<MapOverlaySettings>) => void;
@@ -112,6 +115,8 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   onOpenMortarInfo,
   onOpenDiagnostics,
   onOpenHelp,
+  onOpenMissionLog,
+  missionsCount = 0,
   failedTiles = 0,
   overlays,
   onUpdateOverlays,
@@ -378,6 +383,23 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
                     >
                       <Info className="w-4 h-4 shrink-0 text-slate-400" />
                       <span className="truncate">{isAr ? 'المساعدة' : 'Help'}</span>
+                    </button>
+                  )}
+
+                  {/* Fire mission log */}
+                  {onOpenMissionLog && (
+                    <button
+                      onClick={() => {
+                        onClose();
+                        onOpenMissionLog();
+                      }}
+                      className="p-2 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 font-bold transition-all"
+                    >
+                      <History className="w-4 h-4 shrink-0 text-amber-400" />
+                      <span className="truncate">{isAr ? 'سجل المهام' : 'Mission Log'}</span>
+                      <span className="ms-auto text-[10px] px-1.5 rounded font-bold bg-slate-900 text-amber-300">
+                        {missionsCount}
+                      </span>
                     </button>
                   )}
 

@@ -303,6 +303,25 @@ export interface AiSettings {
   model: string;
 }
 
+/** One saved fire mission in the mission log (browser-only storage, exportable in backups). */
+export interface FireMissionRecord {
+  id: string;
+  createdAt: string; // ISO timestamp
+  terrainId: TerrainId;
+  weaponId: string;
+  weaponName: string;
+  ammoId?: string;
+  ammoLabel?: string;
+  ring: number;
+  gun: { x: number; z: number; alt: number };
+  target: { x: number; z: number; alt: number };
+  azimuthMils: number;
+  elevationMils: number | null;
+  rangeM: number;
+  tofS: number | null;
+  callout: string; // the squad radio callout text as it was copied
+}
+
 export interface AppExportData {
   schemaVersion: 1;
   exportedAt: string;
@@ -313,4 +332,5 @@ export interface AppExportData {
   customMarkers: CustomMapMarker[];
   customMortars: CustomMortarConfig[];
   weaponTunings?: WeaponTunings;
+  missions?: FireMissionRecord[];
 }

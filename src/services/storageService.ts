@@ -1,14 +1,16 @@
-import { 
-  AppCustomizationSettings, 
+import {
+  AppCustomizationSettings,
   InterfaceVisibilitySettings,
-  MapOverlaySettings, 
-  WeatherSettings, 
-  CustomMapMarker, 
+  MapOverlaySettings,
+  WeatherSettings,
+  CustomMapMarker,
   CustomMortarConfig,
   AppExportData,
   WeaponTuning,
   WeaponTunings,
-  AiSettings
+  AiSettings,
+  FireMissionRecord,
+  TerrainId
 } from '../types';
 
 import { isStorageAllowed } from './storageConsent';
@@ -21,6 +23,7 @@ const STORAGE_KEYS = {
   MORTARS: 'arma_reforger_fcs_mortars_v1',
   TUNING: 'arma_reforger_fcs_tuning_v1',
   AI: 'arma_reforger_fcs_ai_v1',
+  MISSIONS: 'arma_reforger_fcs_missions_v1',
 };
 
 export const DEFAULT_VISIBILITY: InterfaceVisibilitySettings = {
@@ -233,6 +236,47 @@ export function sanitizeMarkers(raw: unknown): CustomMapMarker[] {
   return out;
 }
 
+const TERRAIN_IDS = ['everon', 'arland', 'kolguyev'] as const;
+const MAX_MISSIONS = 100;
+
+/** Mission log entries are validated field by field; corrupted rows are dropped, bad numbers fall back. */
+export function sanitizeMissions(raw: unknown): FireMissionRecord[] {
+  if (!Array.isArray(raw)) return [];
+  const out: FireMissionRecord[] = [];
+  const sanePos = (p: unknown): { x: number; z: number; alt: number } | null => {
+    if (!isObj(p)) return null;
+    const x = p.x, z = p.z;
+    if (typeof x !== 'number' || typeof z !== 'number' || !Number.isFinite(x) || !Number.isFinite(z)) return null;
+    return { x, z, alt: num(p.alt, -500, 9000, 0) };
+  };
+  raw.forEach((m, i) => {
+    if (!isObj(m) || out.length >= MAX_MISSIONS) return;
+    const gun = sanePos(m.gun);
+    const target = sanePos(m.target);
+    if (!gun || !target) return;
+    const elev = typeof m.elevationMils === 'number' && Number.isFinite(m.elevationMils) ? Math.round(m.elevationMils) : null;
+    const tof = typeof m.tofS === 'number' && Number.isFinite(m.tofS) ? Math.max(0, m.tofS) : null;
+    out.push({
+      id: str(m.id, `mission_${Date.now()}_${i}`, 80),
+      createdAt: typeof m.createdAt === 'string' ? m.createdAt : new Date().toISOString(),
+      terrainId: oneOf(m.terrainId, TERRAIN_IDS, 'everon') as TerrainId,
+      weaponId: str(m.weaponId, '', 80),
+      weaponName: str(m.weaponName, 'Mortar', 80),
+      ammoId: typeof m.ammoId === 'string' ? m.ammoId.slice(0, 80) : undefined,
+      ammoLabel: typeof m.ammoLabel === 'string' ? m.ammoLabel.slice(0, 120) : undefined,
+      ring: Math.round(num(m.ring, 0, 10, 4)),
+      gun,
+      target,
+      azimuthMils: Math.round(num(m.azimuthMils, 0, 6400, 0)),
+      elevationMils: elev,
+      rangeM: Math.max(0, num(m.rangeM, 0, 100000, 0)),
+      tofS: tof,
+      callout: str(m.callout, '', 500),
+    });
+  });
+  return out;
+}
+
 export function sanitizeMortars(raw: unknown): CustomMortarConfig[] {
   if (!Array.isArray(raw)) return [];
   const out: CustomMortarConfig[] = [];
@@ -349,6 +393,10 @@ export const StorageService = {
     return sanitizeTunings(readJson(STORAGE_KEYS.TUNING));
   },
 
+  loadMissions(): FireMissionRecord[] {
+    return sanitizeMissions(readJson(STORAGE_KEYS.MISSIONS));
+  },
+
   // Savers
   saveSettings(settings: AppCustomizationSettings) {
     safeSet(STORAGE_KEYS.SETTINGS, settings);
@@ -374,6 +422,10 @@ export const StorageService = {
     safeSet(STORAGE_KEYS.MORTARS, mortars);
   },
 
+  saveMissions(missions: FireMissionRecord[]) {
+    safeSet(STORAGE_KEYS.MISSIONS, missions.slice(0, 100));
+  },
+
   // Export to Portable JSON Backup
   exportBackupFile(
     settings: AppCustomizationSettings,
@@ -381,7 +433,8 @@ export const StorageService = {
     weatherSettings: WeatherSettings,
     customMarkers: CustomMapMarker[],
     customMortars: CustomMortarConfig[],
-    weaponTunings: WeaponTunings = {}
+    weaponTunings: WeaponTunings = {},
+    missions: FireMissionRecord[] = []
   ) {
     const backup: AppExportData = {
       schemaVersion: 1,
@@ -393,6 +446,7 @@ export const StorageService = {
       customMarkers,
       customMortars,
       weaponTunings,
+      missions: sanitizeMissions(missions),
     };
 
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -425,6 +479,7 @@ export const StorageService = {
         customMarkers: sanitizeMarkers(parsed.customMarkers),
         customMortars: sanitizeMortars(parsed.customMortars),
         weaponTunings: sanitizeTunings(parsed.weaponTunings),
+        missions: sanitizeMissions(parsed.missions),
       };
     } catch {
       return null;
@@ -531,10 +586,11 @@ export const StorageService = {
     return { ...DEFAULT_SETTINGS };
   },
 
-  clearUserData(): { markers: CustomMapMarker[]; mortars: CustomMortarConfig[] } {
+  clearUserData(): { markers: CustomMapMarker[]; mortars: CustomMortarConfig[]; missions: FireMissionRecord[] } {
     safeSet(STORAGE_KEYS.MARKERS, []);
     safeSet(STORAGE_KEYS.MORTARS, []);
-    return { markers: [], mortars: [] };
+    safeSet(STORAGE_KEYS.MISSIONS, []);
+    return { markers: [], mortars: [], missions: [] };
   },
 
   factoryReset() {
@@ -548,6 +604,7 @@ export const StorageService = {
       storage.removeItem(STORAGE_KEYS.MORTARS);
       storage.removeItem(STORAGE_KEYS.TUNING);
       storage.removeItem(STORAGE_KEYS.AI);
+      storage.removeItem(STORAGE_KEYS.MISSIONS);
     } catch (err) {
       console.warn('Factory reset localStorage error:', err);
     }

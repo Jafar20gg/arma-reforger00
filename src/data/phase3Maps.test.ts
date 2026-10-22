@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { TERRAINS } from './maps';
 import { pixelsPerMeter } from '../services/compass';
@@ -35,8 +36,9 @@ describe('Phase 3: map configuration is consistent for every terrain', () => {
         expect(t.minZoom).toBeLessThanOrEqual(2);
         Object.keys(t.layers).forEach((name) => {
           const lim = t.layerZoomLimits![name as 'topo' | 'sat' | 'drawn'];
-          expect(lim.maxZoom).toBeGreaterThanOrEqual(2);
-          const metersPerPixel = 1 / pixelsPerMeter(t.tileSize, t.worldSize, lim.maxNativeZoom);
+          expect(lim).toBeDefined();
+          expect(lim!.maxZoom).toBeGreaterThanOrEqual(2);
+          const metersPerPixel = 1 / pixelsPerMeter(t.tileSize, t.worldSize, lim!.maxNativeZoom);
           expect(metersPerPixel).toBeGreaterThan(0.05);
           expect(metersPerPixel).toBeLessThan(2);
         });

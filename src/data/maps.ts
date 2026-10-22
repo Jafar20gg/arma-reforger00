@@ -101,8 +101,16 @@ export const TERRAINS: Record<TerrainId, TerrainConfig> = {
     description: '4.1 x 4.1 km strategic island featuring intense small-unit combat, Arleville harbor, Beauregard settlement, and military radar stations.',
     tileHost: 'enfumap.com (Cloudflare CDN) — Unverified license/permission',
     attribution: '© Bohemia Interactive a.s. | Enfumap',
-    // Section 4.2: No verified locations dataset exists; show no labels
-    pois: [],
+    // Locations from EnfusionMapMaker game-coordinate extracts (same source as Everon's list)
+    pois: [
+      { name: 'Airport Base', nameAr: 'قاعدة المطار', x: 946.6, z: 2895.5, kind: 'military', tier: 1 },
+      { name: 'Military Training Base', nameAr: 'قاعدة التدريب العسكرية', x: 1413.4, z: 1857.5, kind: 'military', tier: 1 },
+      { name: 'Beauregard', nameAr: 'بورغار', x: 3168.8, z: 2796.3, kind: 'village', tier: 2 },
+      { name: 'Arleville', nameAr: 'أرلفيل', x: 2776.8, z: 1623.5, kind: 'village', tier: 2 },
+      { name: 'Farm', nameAr: 'المزرعة', x: 2208.9, z: 2909.5, kind: 'landmark', tier: 3 },
+      { name: 'Moss Hill', nameAr: 'تلة موس', x: 2292.8, z: 1223.6, kind: 'hill', tier: 3 },
+      { name: 'Signal Hill', nameAr: 'تلة الإشارة', x: 2506.8, z: 2267.2, kind: 'hill', tier: 3 },
+    ],
   },
   kolguyev: {
     id: 'kolguyev',
@@ -128,7 +136,15 @@ export const TERRAINS: Record<TerrainId, TerrainConfig> = {
     description: '12.8 x 12.8 km volcanic terrain with stark granite mountains, pine forests, geothermal hot springs, and hardened Soviet installations.',
     tileHost: 'enfumap.com (Cloudflare CDN) — Unverified license/permission',
     attribution: '© Bohemia Interactive a.s. | Enfumap',
-    // Section 4.2: No verified locations dataset exists; show no labels
-    pois: [],
+    // Kolguyev (Reforger 1.6) locations with game-meter coordinates (community-extracted, verify in game)
+    pois: [
+      { name: 'Kamensk', nameAr: 'كامينسك', x: 11867, z: 10680, kind: 'town', tier: 2 },
+      { name: 'Mineraly', nameAr: 'مينيرالي', x: 6322, z: 8012, kind: 'town', tier: 2 },
+      { name: 'Gorshkovo', nameAr: 'غورشكوفو', x: 8422, z: 6592, kind: 'town', tier: 2 },
+      { name: 'Ugoldar', nameAr: 'أوغولدار', x: 6642, z: 3907, kind: 'town', tier: 2 },
+      { name: 'Crossroad', nameAr: 'التقاطع', x: 8559, z: 9376, kind: 'landmark', tier: 2 },
+      { name: 'Villa', nameAr: 'الفيلا', x: 1951, z: 7401, kind: 'village', tier: 2 },
+      { name: 'Zenit Mine', nameAr: 'منجم زينيت', x: 3674, z: 5223, kind: 'landmark', tier: 3 },
+    ],
   },
 };

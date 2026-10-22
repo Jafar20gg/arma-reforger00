@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { gameToLatLng, latLngToGame, createTerrainCRS } from './mapCoordinates';
 import { TERRAINS } from '../data/maps';

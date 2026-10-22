@@ -1,23 +1,29 @@
 import { AiCheckCard } from './AiCheckCard';
 import { computeWindCorrection } from '../services/wind';
+import { interpolateBallistics } from '../services/ballisticsCalculator';
+import { buildFireMissionCallout } from '../services/callout';
 import { InfoTip } from './InfoTip';
 import { ElevationGauge } from './ElevationGauge';
+import { SplashTimer } from './SplashTimer';
+import { AdjustFireCard } from './AdjustFireCard';
 import { applyTuningToCharges, effectiveMinElevationMils } from '../services/ballisticsCalculator';
 import React, { useState } from 'react';
 import { WeaponConfig, BallisticSolution, TerrainConfig, AiSettings, WeatherSettings } from '../types';
 import { formatGridCoord } from '../data/ballistics';
 import { MortarInfoCard } from './MortarInfoCard';
-import { 
-  Crosshair, 
-  Target, 
-  Compass, 
-  Clock, 
-  ArrowUpRight, 
+import {
+  Crosshair,
+  Target,
+  Compass,
+  Clock,
+  ArrowUpRight,
   Copy,
   Check,
   Zap,
   Layers,
-  MapPin
+  MapPin,
+  History,
+  Link2
 } from 'lucide-react';
 
 interface FireControlPanelProps {
@@ -38,6 +44,9 @@ interface FireControlPanelProps {
   aiSettings?: AiSettings;
   weather?: WeatherSettings;
   tuning?: { rangeScalePct: number; elevationOffsetMils: number; minElevationLockDeg?: number; closingAngleDeg?: number; freeMode?: boolean };
+  onAdjustTarget?: (addDropM: number, deflectionMils: number) => void;
+  onSaveMission?: () => void;
+  onCopyMissionLink?: () => void;
 }
 
 export const FireControlPanel: React.FC<FireControlPanelProps> = ({
@@ -58,10 +67,15 @@ export const FireControlPanel: React.FC<FireControlPanelProps> = ({
   tuning,
   aiSettings,
   weather,
+  onAdjustTarget,
+  onSaveMission,
+  onCopyMissionLink,
 }) => {
   const [gridInputGun, setGridInputGun] = useState('');
   const [gridInputTarget, setGridInputTarget] = useState('');
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
   const wind = weather
     ? computeWindCorrection({
         weather: { ...weather, enabled: true },
@@ -77,6 +91,12 @@ export const FireControlPanel: React.FC<FireControlPanelProps> = ({
   const activeCharges = activeAmmo ? activeAmmo.charges : selectedWeapon.charges;
   const tunedCharges = applyTuningToCharges(selectedWeapon, activeCharges, tuning);
   const activeRingObj = tunedCharges.find((c) => c.charge === solution.charge) || tunedCharges[0];
+
+  // Wind-corrected dial: re-solve the same ring's table at the wind-corrected aim range,
+  // so the crew gets a corrected ELEVATION to dial, not just a corrected azimuth/range.
+  const windSolution = wind && wind.active && activeRingObj
+    ? interpolateBallistics(activeRingObj.table, Math.round(wind.correctedRangeM))
+    : null;
 
   // Apply typed 6-digit or 8-digit grid (e.g. "048 071", "048071", "0482 0715")
   const applyGridCoord = (input: string, isGun: boolean) => {
@@ -110,25 +130,30 @@ export const FireControlPanel: React.FC<FireControlPanelProps> = ({
 
   // Copy Fire Mission callout for in-game squad communication
   const copyFireMission = () => {
-    const azMilStr = selectedWeapon.milSystem === 'SOVIET'
-      ? `${String(Math.floor(solution.azimuthMils / 100)).padStart(2, '0')}-${String(solution.azimuthMils % 100).padStart(2, '0')}`
-      : `${solution.azimuthMils}`;
-
-    const elevMilStr = solution.elevationMils !== null
-      ? (selectedWeapon.milSystem === 'SOVIET'
-          ? `${String(Math.floor(solution.elevationMils / 100)).padStart(2, '0')}-${String(solution.elevationMils % 100).padStart(2, '0')}`
-          : `${solution.elevationMils}`)
-      : 'OUT OF RANGE';
-
-    const ysStr = solution.peakAlt ? ` | Ys: ${solution.peakAlt}m` : '';
-    const dhwStr = solution.dElevPer100m ? ` | ΔHw: ${solution.dElevPer100m}` : '';
     const ammoLabel = activeAmmo ? `${activeAmmo.name} (${activeAmmo.weightKg}kg)` : solution.ammoType;
-
-    const text = `[FIRE MISSION - ${terrain.name.toUpperCase()}] ${selectedWeapon.name} [${ammoLabel}] | RING: ${solution.charge} | AZ: ${azMilStr} mils (${solution.azimuthDeg}°) | EL: ${elevMilStr} mils (${solution.elevationDeg !== null ? `${solution.elevationDeg.toFixed(1)}°` : '--'}) | RNG: ${solution.horizontalDistance}m (ΔH: ${solution.heightDifference >= 0 ? '+' : ''}${solution.heightDifference}m) | TOF: ${solution.timeOfFlight || 0}s${ysStr}${dhwStr} | GUN: ${formatGridCoord(gunPos.x, gunPos.z, 6)} | TGT: ${formatGridCoord(targetPos.x, targetPos.z, 6)}`;
-
+    const text = buildFireMissionCallout({
+      terrainName: terrain.name,
+      weapon: selectedWeapon,
+      ammoLabel,
+      solution,
+      gunPos,
+      targetPos,
+    });
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2200);
+  };
+
+  const copyMissionLink = () => {
+    onCopyMissionLink?.();
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2200);
+  };
+
+  const saveMission = () => {
+    onSaveMission?.();
+    setSavedFlash(true);
+    setTimeout(() => setSavedFlash(false), 1800);
   };
 
   const isAutoMode = selectedCharge === -1;
@@ -434,6 +459,15 @@ export const FireControlPanel: React.FC<FireControlPanelProps> = ({
                 {lang === 'ar' ? 'المسافة المصحَّحة' : 'Corrected range'}: {wind.correctedRangeM.toFixed(0)} {lang === 'ar' ? 'م' : 'm'}
                 <span className="text-slate-400"> [{wind.rangeCorrM >= 0 ? '+' : ''}{wind.rangeCorrM.toFixed(0)}]</span>
               </div>
+              {windSolution && (
+                <div className="text-cyan-200 font-bold border-t border-cyan-900/50 pt-1">
+                  {lang === 'ar' ? 'الارتفاع المصحَّح' : 'Corrected EL'}: {Math.round(windSolution.elevation)} mils (
+                  {((windSolution.elevation / selectedWeapon.milsPerCircle) * 360).toFixed(1)}°)
+                  <span className="text-slate-400 font-normal">
+                    {' '}{lang === 'ar' ? 'مع' : 'with'} TOF {windSolution.timeOfFlight.toFixed(1)}s
+                  </span>
+                </div>
+              )}
               <div className="text-slate-500 text-[10px]">
                 {lang === 'ar' ? 'تقدير استشاري — الرياح تأتي من' : 'Advisory estimate — wind from'} {weather!.windDirectionDeg}° · {wind.windMs.toFixed(1)} m/s
               </div>
@@ -524,22 +558,66 @@ export const FireControlPanel: React.FC<FireControlPanelProps> = ({
             </div>
           </div>
 
-          {/* One-Click Copy Fire Mission */}
-          <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between">
-            <span className="text-[10px] text-slate-400 font-mono">{t.radioCallout}</span>
-            <button
-              onClick={copyFireMission}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all ${
-                copied
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-sky-600 hover:bg-sky-500 text-white shadow-md'
-              }`}
-            >
-              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? t.copied : t.copyMission}</span>
-            </button>
+          {/* One-Click Copy Fire Mission + mission tools */}
+          <div className="mt-3 pt-3 border-t border-slate-800/80 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-slate-400 font-mono">{t.radioCallout}</span>
+              <button
+                onClick={copyFireMission}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all ${
+                  copied
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-sky-600 hover:bg-sky-500 text-white shadow-md'
+                }`}
+              >
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copied ? t.copied : t.copyMission}</span>
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              {onSaveMission && (
+                <button
+                  onClick={saveMission}
+                  disabled={!solution.inRange}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-mono font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                    savedFlash
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700'
+                  }`}
+                >
+                  {savedFlash ? <Check className="w-3.5 h-3.5" /> : <History className="w-3.5 h-3.5" />}
+                  <span>{savedFlash ? (isAr ? 'حُفظت!' : 'Saved!') : (isAr ? 'حفظ المهمة' : 'Save mission')}</span>
+                </button>
+              )}
+              {onCopyMissionLink && (
+                <button
+                  onClick={copyMissionLink}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-mono font-bold transition-all ${
+                    linkCopied
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700'
+                  }`}
+                >
+                  {linkCopied ? <Check className="w-3.5 h-3.5" /> : <Link2 className="w-3.5 h-3.5" />}
+                  <span>{linkCopied ? (isAr ? 'نُسخ الرابط!' : 'Link copied!') : (isAr ? 'مشاركة برابط' : 'Share link')}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Splash countdown timer: FIRE when the shell leaves the tube */}
+        <SplashTimer tofS={solution.inRange ? solution.timeOfFlight : null} lang={lang} onFired={onSaveMission} />
+
+        {/* Adjust fire from observed impact */}
+        {onAdjustTarget && (
+          <AdjustFireCard
+            lang={lang}
+            milsPerCircle={selectedWeapon.milsPerCircle}
+            disabled={!solution.inRange}
+            onApply={onAdjustTarget}
+          />
+        )}
 
 
         {tuning && (tuning.rangeScalePct !== 0 || tuning.elevationOffsetMils !== 0 || !!tuning.minElevationLockDeg || !!tuning.closingAngleDeg || !!tuning.freeMode) && (
