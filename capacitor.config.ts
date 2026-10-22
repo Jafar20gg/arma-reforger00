@@ -4,7 +4,6 @@ const config: CapacitorConfig = {
   appId: 'com.armareforger.tacticalfcs',
   appName: 'Arma Reforger FCS',
   webDir: 'dist',
-  bundledWebRuntime: false,
   server: {
     androidScheme: 'https',
     cleartext: true,
