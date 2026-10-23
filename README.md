@@ -212,3 +212,6 @@ Root cause: with a height difference (the defaults are gun 65 m / target 72 m) t
 ### v2.26 — Standalone Android app
 - The Android build is now a **signed release APK** published on the Releases page (direct download). Every build uses the same signing key (kept in the Actions cache, or in repository secrets), so new APKs update the installed app without losing its data. Scripts: `tools/android/`. See `docs/android-apk.md`.
 - Inside the installed app: own storage (settings, markers, missions, offline maps), no service worker, Android back button closes the top screen, launcher icon from `assets/icon.png`, version number rises with every build.
+
+### v2.27 — Fix: "Failed to fetch dynamically imported module"
+- After a new version was published, a phone could keep the old saved page, which asked for a Settings/Help screen file that no longer existed. Now: the app notices this, deletes only the saved page copy and reloads by itself (no data lost). Any remaining case shows a friendly "new version, tap to reload" screen instead of "Reset saved data". The service worker now asks the network first (3 s), then the saved page. Code: `src/services/lazyWithReload.ts`.

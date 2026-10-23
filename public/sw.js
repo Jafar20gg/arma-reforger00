@@ -6,7 +6,7 @@
  * Offline maps (cache 'fcs-offline-*') are filled by the app itself and are found by caches.match below.
  * Version bump -> old caches are deleted on activate (except the offline maps).
  */
-const VERSION = 'fcs-v2.25';
+const VERSION = 'fcs-v2.27';
 // Maps the user downloaded on purpose (Offline maps screen). Never deleted by version changes or the LRU trim.
 const OFFLINE_PREFIX = 'fcs-offline-';
 const SHELL_CACHE = `${VERSION}-shell`;
@@ -61,26 +61,30 @@ self.addEventListener('fetch', (event) => {
   // (otherwise every downloaded tile would be stored twice and the cache trimmed after each one).
   if (req.cache === 'reload' || req.cache === 'no-store') return;
 
-  // Page navigations: open the saved app shell at once (fast start), update it in the background.
-  // First visit (nothing saved yet) or no saved copy: use the network.
+  // Page navigations: ask the network first, but if it takes more than 3 s (slow phone data) or fails,
+  // open the saved copy so the app still starts quickly. The network answer refreshes the saved copy.
+  // (A saved copy older than the server is handled in the app: it reloads itself, see lazyWithReload.ts.)
   if (req.mode === 'navigate') {
-    event.respondWith(
-      caches.match('./index.html').then((saved) => {
-        const fresh = fetch(req)
-          .then((res) => {
-            if (res && res.ok) {
-              const copy = res.clone();
-              caches.open(SHELL_CACHE).then((c) => c.put('./index.html', copy));
-            }
-            return res;
-          })
-          .catch(() => null);
-        if (saved) {
-          event.waitUntil(fresh);
-          return saved;
+    const net = fetch(req)
+      .then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(SHELL_CACHE).then((c) => c.put('./index.html', copy));
         }
-        return fresh.then((res) => res || caches.match('./'));
+        return res;
       })
+      .catch(() => null);
+    const slow = new Promise((resolve) => setTimeout(() => resolve(null), 3000));
+    event.waitUntil(net);
+    event.respondWith(
+      Promise.race([net, slow]).then(
+        (res) =>
+          res ||
+          caches
+            .match('./index.html')
+            .then((saved) => saved || net)
+            .then((r) => r || caches.match('./'))
+      )
     );
     return;
   }

@@ -1,7 +1,7 @@
 {
   "name": "arma-reforger-fcs",
   "private": true,
-  "version": "2.26.0",
+  "version": "2.27.0",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",

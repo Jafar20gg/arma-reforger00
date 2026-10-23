@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef, Suspense } from 'react';
+import { lazyWithReload } from './services/lazyWithReload';
 import { TERRAINS } from './data/maps';
 import { WEAPONS, calculateFiringSolution } from './data/ballistics';
 import { 
@@ -34,13 +35,13 @@ import { WeatherWidget } from './components/WeatherWidget';
 import { ThreeDotMenu } from './components/ThreeDotMenu';
 
 // Heavy screens load only when first opened (faster first paint)
-const DiagnosticsModal = lazy(() => import('./components/DiagnosticsModal').then((m) => ({ default: m.DiagnosticsModal })));
-const HelpModal = lazy(() => import('./components/HelpModal').then((m) => ({ default: m.HelpModal })));
-const SettingsModal = lazy(() => import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal })));
-const CustomMarkerModal = lazy(() => import('./components/CustomMarkerModal').then((m) => ({ default: m.CustomMarkerModal })));
-const MissionLogModal = lazy(() => import('./components/MissionLogModal').then((m) => ({ default: m.MissionLogModal })));
-const OfflineMapsModal = lazy(() => import('./components/OfflineMapsModal').then((m) => ({ default: m.OfflineMapsModal })));
-const MortarInformationSystem = lazy(() => import('./components/MortarInformationSystem').then((m) => ({ default: m.MortarInformationSystem })));
+const DiagnosticsModal = lazyWithReload(() => import('./components/DiagnosticsModal').then((m) => ({ default: m.DiagnosticsModal })));
+const HelpModal = lazyWithReload(() => import('./components/HelpModal').then((m) => ({ default: m.HelpModal })));
+const SettingsModal = lazyWithReload(() => import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal })));
+const CustomMarkerModal = lazyWithReload(() => import('./components/CustomMarkerModal').then((m) => ({ default: m.CustomMarkerModal })));
+const MissionLogModal = lazyWithReload(() => import('./components/MissionLogModal').then((m) => ({ default: m.MissionLogModal })));
+const OfflineMapsModal = lazyWithReload(() => import('./components/OfflineMapsModal').then((m) => ({ default: m.OfflineMapsModal })));
+const MortarInformationSystem = lazyWithReload(() => import('./components/MortarInformationSystem').then((m) => ({ default: m.MortarInformationSystem })));
 
 export default function App() {
   // 1. Persistent Storage State (Browser LocalStorage)
